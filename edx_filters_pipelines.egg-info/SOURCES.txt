@@ -1,0 +1,17 @@
+CHANGELOG.rst
+LICENSE.txt
+MANIFEST.in
+README.rst
+setup.cfg
+setup.py
+edx_filters_pipelines/__init__.py
+edx_filters_pipelines/edx_filters_pipelines.py
+edx_filters_pipelines.egg-info/PKG-INFO
+edx_filters_pipelines.egg-info/SOURCES.txt
+edx_filters_pipelines.egg-info/dependency_links.txt
+edx_filters_pipelines.egg-info/not-zip-safe
+edx_filters_pipelines.egg-info/requires.txt
+edx_filters_pipelines.egg-info/top_level.txt
+requirements/base.in
+requirements/constraints.txt
+tests/test_edx-filters-pipelines.py
