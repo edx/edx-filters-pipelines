@@ -117,7 +117,7 @@ def is_requirement(line):
     return line and line.strip() and not line.startswith(("-r", "#", "-e", "git+", "-c"))
 
 
-VERSION = get_version('edx-filters-pipelines', '__init__.py')
+VERSION = get_version('edx_filters_pipelines', '__init__.py')
 
 if sys.argv[-1] == 'tag':
     print("Tagging the version on github:")
@@ -137,13 +137,13 @@ setup(
     author_email='hraza@2u.com',
     url='https://github.com/edx/edx-filters-pipelines',
     packages=find_packages(
-        include=['edx-filters-pipelines', 'edx-filters-pipelines.*'],
+        include=['edx_filters_pipelines', 'edx_filters_pipelines.*'],
         exclude=["*tests"],
     ),
 
     include_package_data=True,
     install_requires=load_requirements('requirements/base.in'),
-    python_requires=">=3.12",
+    python_requires=">=3.11",
     license="AGPL 3.0",
     zip_safe=False,
     keywords='Python edx',
@@ -153,6 +153,6 @@ setup(
         'License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.11',
     ],
 )
