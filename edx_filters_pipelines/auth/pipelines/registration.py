@@ -19,9 +19,7 @@ class PreventForbiddenUsernameRegistration(PipelineStep):
                 "pipeline": [
                     "edx_filters_pipelines.auth.pipelines.registration.PreventForbiddenUsernameRegistration"
                 ],
-                "extra_config": {
-                    "forbidden_usernames": ["admin", "test", "staff"]
-                },
+                "forbidden_usernames": ['admin', 'test', 'staff'],
                 "fail_silently": False
             }
         }
@@ -47,7 +45,7 @@ class PreventForbiddenUsernameRegistration(PipelineStep):
             )
             raise StudentRegistrationRequested.PreventRegistration(
                 message=(
-                    f"Username '{username}' contains a forbidden word: '{forbidden_match}'. "
+                    f"Usernames can't include words that could be mistaken for course roles. "
                     "Please choose a different username."
                 ),
                 status_code=403
