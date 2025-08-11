@@ -2,3 +2,6 @@
 -c constraints.txt
 
 setuptools
+openedx-filters
+pytest
+pytest-cov
