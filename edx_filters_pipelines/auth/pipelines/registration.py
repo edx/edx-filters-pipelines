@@ -48,5 +48,6 @@ class PreventForbiddenUsernameRegistration(PipelineStep):
                     f"Usernames can't include words that could be mistaken for course roles. "
                     "Please choose a different username."
                 ),
-                status_code=403
+                status_code=403,
+                error_code='forbidden-username'
             )
