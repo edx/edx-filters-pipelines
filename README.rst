@@ -1,26 +1,27 @@
 edx-filters-pipelines
 #####################
 
-.. note::
 
-  This README was auto-generated. Maintainer: please review its contents and
-  update all relevant sections. Instructions to you are marked with
-  "PLACEHOLDER" or "TODO". Update or remove those sections, and remove this
-  note when you are done.
-
-|pypi-badge| |ci-badge| |codecov-badge| |doc-badge| |pyversions-badge|
+|pyversions-badge|
 |license-badge| |status-badge|
 
 Purpose
 *******
 
-A Python package that defines and manages custom filter pipelines for use with edx-filters
+``edx-filters-pipelines`` is a private Python package for **edx.org** that extends
+`openedx-filters <https://github.com/openedx/openedx-filters>`_ by adding custom
+pipelines specific to edx.org.  
 
-TODO: The ``README.rst`` file should start with a brief description of the repository and its purpose.
-It should be described in the context of other repositories under the ``openedx``
-organization. It should make clear where this fits into the overall Open edX
-codebase and should be oriented towards people who are new to the Open edX
-project.
+These pipelines enforce
+edx.org–specific business rules and behaviors across platform events such as
+registration, authentication, and course access.
+
+Features
+========
+
+1. Provides edx.org–specific filter pipelines that plug into the Open edX system.
+2. Implements custom validation and enforcement logic (e.g., username restrictions).
+3. Fully compatible with the ``OPEN_EDX_FILTERS_CONFIG`` setting in ``edx-platform``.
 
 Getting Started with Development
 ********************************
@@ -32,12 +33,16 @@ Please see the Open edX documentation for `guidance on Python development`_ in t
 Deploying
 *********
 
-TODO: How can a new user go about deploying this component? Is it just a few
-commands? Is there a larger how-to that should be linked here?
+Since this is a private repo, installation is handled via GitHub with an access token:
 
-PLACEHOLDER: For details on how to deploy this component, see the `deployment how-to`_.
+.. code-block:: bash
 
-.. _deployment how-to: https://docs.openedx.org/projects/edx-filters-pipelines/how-tos/how-to-deploy-this-component.html
+   pip install git+https://<your-token>@github.com/edx/edx-filters-pipelines.git@<tag>#egg=edx-filters-pipelines
+
+Make sure deployment agents have access to this private repo before installing.
+
+(TODO: `How to add private requirements to edx-platform documentation <https://2u-internal.atlassian.net/wiki/spaces/AT/pages/396034066/How+to+add+private+requirements+to+edx-platform>`_)
+
 
 Getting Help
 ************
@@ -45,11 +50,78 @@ Getting Help
 Documentation
 =============
 
-PLACEHOLDER: Start by going through `the documentation`_.  If you need more help see below.
+Configuration
+=============
 
-.. _the documentation: https://docs.openedx.org/projects/edx-filters-pipelines
+To use the pipelines, configure them in your ``edx-platform`` settings via
+``OPEN_EDX_FILTERS_CONFIG``:
 
-(TODO: `Set up documentation <https://openedx.atlassian.net/wiki/spaces/DOC/pages/21627535/Publish+Documentation+on+Read+the+Docs>`_)
+.. code-block:: python
+
+   OPEN_EDX_FILTERS_CONFIG = {
+       "org.openedx.filter.type.v1": {
+           "pipeline": [
+               "path.to.pipeline.CustomPipeline"
+           ],
+           "fail_silently": False,
+       }
+   }
+
+- **filter_type** → The event name defined by an ``OpenEdxPublicFilter`` (e.g., ``"org.openedx.learning.student.registration.requested.v1"``).  
+- **pipeline** → Full Python import path to your ``PipelineStep`` class.  
+- **fail_silently** → If ``True``, errors are ignored; if ``False``, exceptions are raised.  
+
+Concepts
+========
+
+- **OpenEdxPublicFilter** → Declares a filter hook (event). Defines the event name, data context, and any exceptions.  
+- **PipelineStep** → Implements the logic that runs when the filter is triggered.  
+- **OPEN_EDX_FILTERS_CONFIG** → Wires filters to pipeline implementations.  
+
+Example
+=======
+
+.. code-block:: python
+
+Below are generic examples showing how to define and use **Filters** and **Pipeline Steps** with
+``edx-filters-pipelines``.
+
+Filter Example
+~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    from openedx_filters.tooling import OpenEdxPublicFilter
+
+    class CustomFilter(OpenEdxPublicFilter):
+        """
+        Example filter used to modify the process in the LMS.
+
+        Filter Type:
+            org.openedx.filter.type.v1
+
+        Trigger:
+            - Repository: openedx/edx-platform
+            - Path: path/to/function/
+            - Method: View.post
+        """
+
+        filter_type = "org.openedx.filter.v1"
+
+
+Pipeline Example
+~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    from edx_filters_pipelines.pipelines.base import PipelineStep
+
+    class CustomPipeline(PipelineStep):
+        """
+        Pipeline that adds functionality to filter type
+        """
+        def run_filter(self, data, **kwargs):
+            return data
 
 More Help
 =========
