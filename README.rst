@@ -85,7 +85,10 @@ Example
 
 Below are generic examples showing how to define and use **Filters** and **Pipeline Steps** with
 ``edx-filters-pipelines``.
+Below are generic examples showing how to define and use **Filters** and **Pipeline Steps** with
+``edx-filters-pipelines``.
 
+.. code-block:: python
 Filter Example
 ~~~~~~~~~~~~~~
 
