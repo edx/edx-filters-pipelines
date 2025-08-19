@@ -106,7 +106,7 @@ Filter Example
             - Method: View.post
         """
 
-        filter_type = "org.openedx.filter.v1"
+        filter_type = "org.openedx.filter.type.v1"
 
 
 Pipeline Example
