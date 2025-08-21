@@ -51,3 +51,4 @@ class PreventForbiddenUsernameRegistration(PipelineStep):
                 status_code=403,
                 error_code='forbidden-username'
             )
+        return form_data
