@@ -5,3 +5,5 @@ setuptools
 openedx-filters
 pytest
 pytest-cov
+django-crum
+google-cloud-recaptcha-enterprise

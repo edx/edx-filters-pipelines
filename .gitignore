@@ -40,3 +40,4 @@ htmlcov/
 # OS X artifacts
 *.DS_Store
 
+.idea
