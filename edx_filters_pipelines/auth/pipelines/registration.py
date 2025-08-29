@@ -1,3 +1,6 @@
+"""
+Registration pipeline step(s) for enforcing rules during user sign-up.
+"""
 import logging
 
 from openedx_filters import PipelineStep
@@ -45,7 +48,7 @@ class PreventForbiddenUsernameRegistration(PipelineStep):
             )
             raise StudentRegistrationRequested.PreventRegistration(
                 message=(
-                    f"Usernames can't include words that could be mistaken for course roles. "
+                    "Usernames can't include words that could be mistaken for course roles. "
                     "Please choose a different username."
                 ),
                 status_code=403,
