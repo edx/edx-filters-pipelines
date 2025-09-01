@@ -404,7 +404,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (top_level_doc, project_title, documentation_title,
-     author, project_title, 'A Python package that defines and manages custom filter pipelines for use with edx-filters',
+     author, project_title,
+     'A Python package that defines and manages custom filter pipelines for use with edx-filters',
      'Miscellaneous'),
 ]
 
