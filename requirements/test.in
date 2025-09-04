@@ -7,3 +7,4 @@ pytest
 pytest-cov                # pytest extension for code coverage statistics
 edx-lint
 pylint-celery
+setuptools
