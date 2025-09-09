@@ -9,7 +9,7 @@ WAFFLE_NAMESPACE = 'filters_pipelines'
 # .. toggle_implementation: WaffleFlag
 # .. toggle_default: False
 # .. toggle_description: Waffle flag to enable reCAPTCHA validation on registration
-# .. toggle_use_cases: long_term
+# .. toggle_use_cases: circuit_breaker
 # .. toggle_creation_date: 2025-08-26
 # .. toggle_target_removal_date: None because this is a long-term feature
 # .. toggle_warning: When the flag is ON, recaptcha validation is enabled on registration.
