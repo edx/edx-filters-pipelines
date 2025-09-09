@@ -1,5 +1,8 @@
 """
-A Python package that defines and manages custom filter pipelines for use with edx-filters.
+A Python package that defines and manages custom filter pipelines.
+
+This package provides edx.org-specific filter pipelines for use with
+edx-filters.
 """
 
 __version__ = '1.0.1'

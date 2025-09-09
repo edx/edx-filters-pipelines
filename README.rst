@@ -81,14 +81,9 @@ Concepts
 Example
 =======
 
-.. code-block:: python
-
-Below are generic examples showing how to define and use **Filters** and **Pipeline Steps** with
-``edx-filters-pipelines``.
 Below are generic examples showing how to define and use **Filters** and **Pipeline Steps** with
 ``edx-filters-pipelines``.
 
-.. code-block:: python
 Filter Example
 ~~~~~~~~~~~~~~
 
@@ -117,14 +112,34 @@ Pipeline Example
 
 .. code-block:: python
 
-    from edx_filters_pipelines.pipelines.base import PipelineStep
+    from openedx_filters import PipelineStep
 
     class CustomPipeline(PipelineStep):
         """
-        Pipeline that adds functionality to filter type
+        Pipeline that adds functionality to filter type.
         """
         def run_filter(self, data, **kwargs):
             return data
+
+Real-World Example
+~~~~~~~~~~~~~~~~~~
+
+The package includes a concrete implementation for preventing forbidden usernames during registration:
+
+.. code-block:: python
+
+    # Configuration in edx-platform settings
+    OPEN_EDX_FILTERS_CONFIG = {
+        "org.openedx.learning.student.registration.requested.v1": {
+            "pipeline": [
+                "edx_filters_pipelines.auth.pipelines.registration.PreventForbiddenUsernameRegistration"
+            ],
+            "forbidden_usernames": ['admin', 'staff', 'instructor', 'moderator'],
+            "fail_silently": False
+        }
+    }
+
+This configuration will prevent users from registering with usernames that contain any of the specified forbidden terms (case-insensitive).
 
 More Help
 =========
