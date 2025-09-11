@@ -49,3 +49,30 @@ class CaptchaForm(Form):
         serialization_options: dict = {
             'captcha_token': {'field_type': 'hidden'},
         }
+
+    def save(self, commit=True):
+        """
+        This method is a placeholder to comply with the expected interface for registration forms.
+        The CAPTCHA token does not need to be saved to the user model.
+
+        Args:
+            user: The user instance being registered.
+            commit: Whether to commit the changes to the database. Not used here.
+
+        Returns:
+            None
+        """
+        # This form does not save any data to the user model. Just return a placeholder to comply with the interface.
+        return CaptchaModel()
+
+
+class CaptchaModel:
+    """
+    Placeholder model to comply with the expected interface.
+    """
+
+    def save(self):
+        """
+        Placeholder save method.
+        """
+        pass

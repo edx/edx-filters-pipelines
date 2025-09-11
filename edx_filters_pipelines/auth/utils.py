@@ -71,8 +71,8 @@ class RecaptchaVerifier:
         try:
             # Create assessment request
             event = recaptchaenterprise_v1.Event({
-                "token": token.strip(),
-                "site_key": site_key.strip(),
+                "token": token,
+                "site_key": site_key,
             })
 
             assessment = recaptchaenterprise_v1.Assessment({"event": event})

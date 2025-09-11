@@ -88,7 +88,7 @@ class VerifyReCaptchaToken(PipelineStep):
         form_data = kwargs.get("form_data", {})
         if not ENABLE_RECAPTCHA_VALIDATION.is_enabled():
             return form_data
-        if verify_recaptcha_token(form_data.get("recaptcha_token", "")):
+        if verify_recaptcha_token(form_data.get("captcha_token", "")):
             logger.info("reCAPTCHA token verification passed.")
         else:
             logger.error("reCAPTCHA token verification failed.")
