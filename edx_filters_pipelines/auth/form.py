@@ -50,13 +50,12 @@ class CaptchaForm(Form):
             'captcha_token': {'field_type': 'hidden'},
         }
 
-    def save(self, commit=True):
+    def save(self, commit=True):  # pylint: disable=unused-argument
         """
         This method is a placeholder to comply with the expected interface for registration forms.
         The CAPTCHA token does not need to be saved to the user model.
 
         Args:
-            user: The user instance being registered.
             commit: Whether to commit the changes to the database. Not used here.
 
         Returns:
@@ -75,4 +74,3 @@ class CaptchaModel:
         """
         Placeholder save method.
         """
-        pass
