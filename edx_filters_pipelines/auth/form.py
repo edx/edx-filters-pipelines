@@ -41,13 +41,16 @@ class CaptchaForm(Form):
     This form is used to extend a registration form to capture the CAPTCHA token from the User.
     """
     captcha_token = CharField(
+        label='CAPTCHA Token',
         required=False,  # This can be set to true based on REGISTRATION_EXTRA_FIELDS setting
         error_messages={'required': 'CAPTCHA token is required.'},
+        initial='',
+        help_text=''
     )
 
     class Meta:
         serialization_options: dict = {
-            'captcha_token': {'field_type': 'hidden'},
+            'captcha_token': {'field_type': 'hidden', 'default': ''},
         }
 
     def save(self, commit=True):  # pylint: disable=unused-argument
