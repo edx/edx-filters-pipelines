@@ -196,6 +196,8 @@ pytest-cov==6.2.1
     # via
     #   -r requirements/base.txt
     #   -r requirements/test.in
+pytest-mock
+    # via -r requirements/test.in
 python-slugify==8.0.4
     # via
     #   -r requirements/base.txt

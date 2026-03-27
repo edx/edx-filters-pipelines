@@ -14,3 +14,15 @@ WAFFLE_NAMESPACE = 'filters_pipelines'
 # .. toggle_target_removal_date: None because this is a long-term feature
 # .. toggle_warning: When the flag is ON, recaptcha validation is enabled on registration.
 ENABLE_RECAPTCHA_VALIDATION = WaffleFlag(f'{WAFFLE_NAMESPACE}.enable_registration_recaptcha_validation', __name__)
+
+# .. toggle_name: filters_pipelines.enable_management_command_monitoring
+# .. toggle_implementation: WaffleFlag
+# .. toggle_default: False
+# .. toggle_description: Waffle flag to enable Datadog monitoring for Django management commands.
+# .. toggle_use_cases: opt_in
+# .. toggle_creation_date: 2026-03-26
+# .. toggle_target_removal_date: None because this is a long-term feature
+# .. toggle_warning: When the flag is ON, management command execution is wrapped with Datadog monitoring.
+ENABLE_MANAGEMENT_COMMAND_MONITORING = WaffleFlag(
+	f'{WAFFLE_NAMESPACE}.enable_management_command_monitoring', __name__
+)
