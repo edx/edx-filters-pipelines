@@ -45,7 +45,7 @@ def monitor_management_command(command_name, service_variant, trace_name=DEFAULT
 class ManagementCommandMonitoringPipelineStep(PipelineStep):
     """Add Datadog monitoring around Django management command execution."""
 
-    def run_filter(self, command_name, service_variant, command_runner, **kwargs):
+    def run_filter(self, command_name, service_variant, command_runner):  # pylint: disable=arguments-differ
         """Return a wrapped command runner that applies monitoring when enabled."""
         trace_name = self.extra_config.get('trace_name', DEFAULT_TRACE_NAME)
 
