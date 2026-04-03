@@ -24,6 +24,8 @@ updates:
 
     groups:
       python-minor-and-patch:
+        patterns:
+          - "*"
         update-types:
           - "minor"
           - "patch"
