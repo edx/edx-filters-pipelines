@@ -4,7 +4,6 @@ import logging
 import time
 from contextlib import contextmanager, nullcontext
 
-import django
 from edx_django_utils.monitoring import function_trace, set_custom_attribute, set_monitoring_transaction_name
 from openedx_filters import PipelineStep
 
@@ -17,7 +16,9 @@ DEFAULT_TRACE_NAME = 'django.management.command'
 
 @contextmanager
 def monitor_management_command(command_name, service_variant, trace_name=DEFAULT_TRACE_NAME):
-    """Wrap a management command execution with Datadog monitoring metadata."""
+    """
+    Wrap a management command execution with Datadog monitoring metadata.
+    """
     transaction_name = f'{service_variant}.management.{command_name}'
 
     set_monitoring_transaction_name(transaction_name)
@@ -43,17 +44,20 @@ def monitor_management_command(command_name, service_variant, trace_name=DEFAULT
 
 
 class ManagementCommandMonitoringPipelineStep(PipelineStep):
-    """Add Datadog monitoring around Django management command execution."""
+    """
+    Add Datadog monitoring around Django management command execution.
+    """
 
     def run_filter(self, command_name, service_variant, command_runner):  # pylint: disable=arguments-differ
-        """Return a wrapped command runner that applies monitoring when enabled."""
+        """
+        Return a wrapped command runner that applies monitoring when enabled.
+        """
         trace_name = self.extra_config.get('trace_name', DEFAULT_TRACE_NAME)
 
         def wrapped_runner():
             monitor_context = nullcontext()
 
             try:
-                django.setup()
                 if ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled():
                     monitor_context = monitor_management_command(command_name, service_variant, trace_name)
             except Exception:  # pylint: disable=broad-except

@@ -32,7 +32,6 @@ def test_management_command_monitoring_step_disabled(mocker):
         'edx_filters_pipelines.management.pipelines.monitoring.ManagementCommandMonitoringPipelineStep',
     )
     command_runner = mocker.Mock(return_value='ok')
-    django_setup = mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.django.setup')
     toggle = mocker.patch(
         'edx_filters_pipelines.management.pipelines.monitoring.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled',
         return_value=False,
@@ -44,7 +43,6 @@ def test_management_command_monitoring_step_disabled(mocker):
     assert result['command_name'] == 'migrate'
     assert result['service_variant'] == 'lms'
     assert result['command_runner']() == 'ok'
-    django_setup.assert_called_once()
     toggle.assert_called_once()
     command_runner.assert_called_once()
 
@@ -55,7 +53,6 @@ def test_management_command_monitoring_step_enabled(mocker):
         'edx_filters_pipelines.management.pipelines.monitoring.ManagementCommandMonitoringPipelineStep',
     )
     command_runner = mocker.Mock(return_value='ok')
-    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.django.setup')
     mocker.patch(
         'edx_filters_pipelines.management.pipelines.monitoring.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled',
         return_value=True,
@@ -88,7 +85,6 @@ def test_management_command_monitoring_step_uses_configured_trace_name(mocker):
         trace_name='custom.management.trace',
     )
     command_runner = mocker.Mock(return_value=None)
-    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.django.setup')
     mocker.patch(
         'edx_filters_pipelines.management.pipelines.monitoring.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled',
         return_value=True,
