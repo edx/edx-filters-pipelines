@@ -8,7 +8,10 @@ import pytest
 from openedx_filters.learning.filters import StudentRegistrationRequested
 
 from edx_filters_pipelines.auth.pipelines.registration import PreventForbiddenUsernameRegistration
-from edx_filters_pipelines.management.pipelines.monitoring import ManagementCommandMonitoringPipelineStep
+from edx_filters_pipelines.management.pipelines.monitoring import (
+    ManagementCommandMonitoringPipelineStep,
+    monitor_management_command,
+)
 
 
 def test_username_blocked():
@@ -99,3 +102,41 @@ def test_management_command_monitoring_step_uses_configured_trace_name(mocker):
     step.run_filter('collectstatic', 'cms', command_runner)['command_runner']()
 
     function_trace.assert_called_once_with('custom.management.trace')
+
+
+def test_monitor_management_command_system_exit_zero_is_success(mocker):
+    mocker.patch(
+        'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
+        return_value=nullcontext(),
+    )
+    set_custom_attribute = mocker.patch(
+        'edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute'
+    )
+    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
+
+    with pytest.raises(SystemExit):
+        with monitor_management_command('migrate', 'lms'):
+            raise SystemExit(0)
+
+    set_custom_attribute.assert_any_call('management_command.exit_code', 0)
+    set_custom_attribute.assert_any_call('management_command.status', 'success')
+
+
+def test_monitor_management_command_keyboard_interrupt_not_recorded_as_exception_class(mocker):
+    mocker.patch(
+        'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
+        return_value=nullcontext(),
+    )
+    set_custom_attribute = mocker.patch(
+        'edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute'
+    )
+    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
+
+    with pytest.raises(KeyboardInterrupt):
+        with monitor_management_command('migrate', 'lms'):
+            raise KeyboardInterrupt()
+
+    assert ('management_command.exception_class', 'KeyboardInterrupt') not in [
+        call.args for call in set_custom_attribute.call_args_list
+    ]
+    set_custom_attribute.assert_any_call('management_command.status', 'failure')

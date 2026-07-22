@@ -33,10 +33,14 @@ def monitor_management_command(command_name, service_variant, trace_name=DEFAULT
         with function_trace(trace_name):
             yield
         status = 'success'
-    except BaseException as exc:
+    except SystemExit as exc:
         set_custom_attribute('management_command.exception_class', exc.__class__.__name__)
-        if isinstance(exc, SystemExit):
-            set_custom_attribute('management_command.exit_code', exc.code)
+        set_custom_attribute('management_command.exit_code', exc.code)
+        if exc.code in (0, None):
+            status = 'success'
+        raise
+    except Exception as exc:
+        set_custom_attribute('management_command.exception_class', exc.__class__.__name__)
         raise
     finally:
         set_custom_attribute('management_command.status', status)
