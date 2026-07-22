@@ -24,6 +24,6 @@ ENABLE_RECAPTCHA_VALIDATION = WaffleFlag(f'{WAFFLE_NAMESPACE}.enable_registratio
 # .. toggle_target_removal_date: None because this is a long-term feature
 # .. toggle_warning: When the setting is True, management command execution is wrapped with Datadog monitoring.
 ENABLE_MANAGEMENT_COMMAND_MONITORING = SettingToggle(
-	'FILTERS_PIPELINES_ENABLE_MANAGEMENT_COMMAND_MONITORING',
-	default=False,
+    'FILTERS_PIPELINES_ENABLE_MANAGEMENT_COMMAND_MONITORING',
+    default=False,
 )
