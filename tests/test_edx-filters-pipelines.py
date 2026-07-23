@@ -104,7 +104,20 @@ def test_management_command_monitoring_step_uses_configured_trace_name(mocker):
     function_trace.assert_called_once_with('custom.management.trace')
 
 
-def test_monitor_management_command_system_exit_zero_is_success(mocker):
+@pytest.mark.parametrize(
+    'raised_exception, expected_status, expected_exit_code, exception_class_recorded',
+    [
+        pytest.param(SystemExit(0), 'success', 0, True, id='system-exit-zero'),
+        pytest.param(KeyboardInterrupt(), 'failure', None, False, id='keyboard-interrupt'),
+    ],
+)
+def test_monitor_management_command_exception_handling(
+    mocker,
+    raised_exception,
+    expected_status,
+    expected_exit_code,
+    exception_class_recorded,
+):
     mocker.patch(
         'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
         return_value=nullcontext(),
@@ -114,29 +127,17 @@ def test_monitor_management_command_system_exit_zero_is_success(mocker):
     )
     mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(type(raised_exception)) as exc_info:
         with monitor_management_command('migrate', 'lms'):
-            raise SystemExit(0)
+            raise raised_exception
 
-    set_custom_attribute.assert_any_call('management_command.exit_code', 0)
-    set_custom_attribute.assert_any_call('management_command.status', 'success')
+    if expected_exit_code is not None:
+        assert exc_info.value.code == expected_exit_code
+        set_custom_attribute.assert_any_call('management_command.exit_code', expected_exit_code)
 
+    if not exception_class_recorded:
+        assert ('management_command.exception_class', raised_exception.__class__.__name__) not in [
+            call.args for call in set_custom_attribute.call_args_list
+        ]
 
-def test_monitor_management_command_keyboard_interrupt_not_recorded_as_exception_class(mocker):
-    mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
-        return_value=nullcontext(),
-    )
-    set_custom_attribute = mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute'
-    )
-    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
-
-    with pytest.raises(KeyboardInterrupt):
-        with monitor_management_command('migrate', 'lms'):
-            raise KeyboardInterrupt()
-
-    assert ('management_command.exception_class', 'KeyboardInterrupt') not in [
-        call.args for call in set_custom_attribute.call_args_list
-    ]
-    set_custom_attribute.assert_any_call('management_command.status', 'failure')
+    set_custom_attribute.assert_any_call('management_command.status', expected_status)
