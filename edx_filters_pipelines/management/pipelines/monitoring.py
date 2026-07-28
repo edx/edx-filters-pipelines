@@ -52,13 +52,14 @@ class ManagementCommandMonitoringPipelineStep(PipelineStep):
     Add Datadog monitoring around Django management command execution.
     """
 
-    def run_filter(self, command_name, service_variant, command_runner):  # pylint: disable=arguments-differ
+    def run_filter(self, command_contextmanager, command_name, service_variant):  # pylint: disable=arguments-differ
         """
-        Return a wrapped command runner that applies monitoring when enabled.
+        Return a wrapped context manager that applies monitoring when enabled.
         """
         trace_name = self.extra_config.get('trace_name', DEFAULT_TRACE_NAME)
 
-        def wrapped_runner():
+        @contextmanager
+        def wrapped_contextmanager():
             monitor_context = nullcontext()
 
             try:
@@ -70,11 +71,12 @@ class ManagementCommandMonitoringPipelineStep(PipelineStep):
                     command_name,
                 )
 
-            with monitor_context:
-                return command_runner()
+            with command_contextmanager:
+                with monitor_context:
+                    yield
 
         return {
+            'command_contextmanager': wrapped_contextmanager(),
             'command_name': command_name,
             'service_variant': service_variant,
-            'command_runner': wrapped_runner,
         }

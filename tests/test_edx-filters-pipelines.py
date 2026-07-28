@@ -31,31 +31,32 @@ def test_username_blocked():
 
 def test_management_command_monitoring_step_disabled(mocker):
     step = ManagementCommandMonitoringPipelineStep(
-        'org.openedx.platform.management.command.execute.requested.v1',
+        'org.openedx.platform.management.command.contextmanager.requested.v1',
         'edx_filters_pipelines.management.pipelines.monitoring.ManagementCommandMonitoringPipelineStep',
     )
-    command_runner = mocker.Mock(return_value='ok')
+    command_execution = mocker.Mock()
     toggle = mocker.patch(
         'edx_filters_pipelines.management.pipelines.monitoring.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled',
         return_value=False,
     )
     mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.function_trace')
 
-    result = step.run_filter('migrate', 'lms', command_runner)
+    result = step.run_filter(nullcontext(), 'migrate', 'lms')
 
     assert result['command_name'] == 'migrate'
     assert result['service_variant'] == 'lms'
-    assert result['command_runner']() == 'ok'
+    with result['command_contextmanager']:
+        command_execution()
     toggle.assert_called_once()
-    command_runner.assert_called_once()
+    command_execution.assert_called_once()
 
 
 def test_management_command_monitoring_step_enabled(mocker):
     step = ManagementCommandMonitoringPipelineStep(
-        'org.openedx.platform.management.command.execute.requested.v1',
+        'org.openedx.platform.management.command.contextmanager.requested.v1',
         'edx_filters_pipelines.management.pipelines.monitoring.ManagementCommandMonitoringPipelineStep',
     )
-    command_runner = mocker.Mock(return_value='ok')
+    command_execution = mocker.Mock()
     mocker.patch(
         'edx_filters_pipelines.management.pipelines.monitoring.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled',
         return_value=True,
@@ -71,9 +72,12 @@ def test_management_command_monitoring_step_enabled(mocker):
         'edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute'
     )
 
-    wrapped = step.run_filter('migrate', 'lms', command_runner)['command_runner']
+    wrapped = step.run_filter(nullcontext(), 'migrate', 'lms')['command_contextmanager']
 
-    assert wrapped() == 'ok'
+    with wrapped:
+        command_execution()
+
+    command_execution.assert_called_once()
     function_trace.assert_called_once_with('django.management.command')
     set_transaction_name.assert_called_once_with('lms.management.migrate')
     set_custom_attribute.assert_any_call('management_command.name', 'migrate')
@@ -83,11 +87,11 @@ def test_management_command_monitoring_step_enabled(mocker):
 
 def test_management_command_monitoring_step_uses_configured_trace_name(mocker):
     step = ManagementCommandMonitoringPipelineStep(
-        'org.openedx.platform.management.command.execute.requested.v1',
+        'org.openedx.platform.management.command.contextmanager.requested.v1',
         'edx_filters_pipelines.management.pipelines.monitoring.ManagementCommandMonitoringPipelineStep',
         trace_name='custom.management.trace',
     )
-    command_runner = mocker.Mock(return_value=None)
+    command_execution = mocker.Mock()
     mocker.patch(
         'edx_filters_pipelines.management.pipelines.monitoring.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled',
         return_value=True,
@@ -99,8 +103,10 @@ def test_management_command_monitoring_step_uses_configured_trace_name(mocker):
     mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
     mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute')
 
-    step.run_filter('collectstatic', 'cms', command_runner)['command_runner']()
+    with step.run_filter(nullcontext(), 'collectstatic', 'cms')['command_contextmanager']:
+        command_execution()
 
+    command_execution.assert_called_once()
     function_trace.assert_called_once_with('custom.management.trace')
 
 
