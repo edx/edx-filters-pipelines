@@ -60,19 +60,19 @@ class ManagementCommandMonitoringPipelineStep(PipelineStep):
 
         @contextmanager
         def wrapped_contextmanager():
-            monitor_context = nullcontext()
+            monitor_contextmanager = nullcontext()
 
             try:
                 if ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled():
-                    monitor_context = monitor_management_command(command_name, service_variant, trace_name)
+                    monitor_contextmanager = monitor_management_command(command_name, service_variant, trace_name)
             except Exception:  # pylint: disable=broad-except
                 log.exception(
                     'Failed to initialize management command monitoring for %s; continuing without monitoring.',
                     command_name,
                 )
 
-            with command_contextmanager:
-                with monitor_context:
+            with monitor_contextmanager:
+                with command_contextmanager:
                     yield
 
         return {
