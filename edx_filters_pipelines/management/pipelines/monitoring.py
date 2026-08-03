@@ -17,7 +17,7 @@ DEFAULT_TRACE_NAME = 'django.management.command'
 @contextmanager
 def monitor_management_command(command_name, service_variant, trace_name=DEFAULT_TRACE_NAME):
     """
-    Wrap a management command execution with Datadog monitoring metadata.
+    Wrap a management command execution with Datadog monitoring metadata and a start log entry.
     """
     transaction_name = f'{service_variant}.management.{command_name}'
 
@@ -25,6 +25,12 @@ def monitor_management_command(command_name, service_variant, trace_name=DEFAULT
     set_custom_attribute('management_command.name', command_name)
     set_custom_attribute('management_command.service_variant', service_variant)
     set_custom_attribute('management_command.transaction_name', transaction_name)
+    log.info(
+        'Starting management command: %s service_variant=%s transaction_name=%s',
+        command_name,
+        service_variant,
+        transaction_name,
+    )
 
     start_time = time.monotonic()
     status = 'failure'
@@ -36,15 +42,43 @@ def monitor_management_command(command_name, service_variant, trace_name=DEFAULT
     except SystemExit as exc:
         set_custom_attribute('management_command.exception_class', exc.__class__.__name__)
         set_custom_attribute('management_command.exit_code', exc.code)
+        set_custom_attribute('management_command.exception_message', str(exc))
         if exc.code in (0, None):
             status = 'success'
+        else:
+            log.exception(
+                'Management command failed: %s service_variant=%s transaction_name=%s exit_code=%s error=%s',
+                command_name,
+                service_variant,
+                transaction_name,
+                exc.code,
+                exc,
+            )
         raise
     except Exception as exc:
         set_custom_attribute('management_command.exception_class', exc.__class__.__name__)
+        set_custom_attribute('management_command.exception_message', str(exc))
+        log.exception(
+            'Management command failed: %s service_variant=%s transaction_name=%s exception_class=%s error=%s',
+            command_name,
+            service_variant,
+            transaction_name,
+            exc.__class__.__name__,
+            exc,
+        )
         raise
     finally:
+        duration = time.monotonic() - start_time
         set_custom_attribute('management_command.status', status)
-        set_custom_attribute('management_command.duration_seconds', time.monotonic() - start_time)
+        set_custom_attribute('management_command.duration_seconds', duration)
+        log.info(
+            'Finished management command: %s service_variant=%s transaction_name=%s status=%s duration_seconds=%s',
+            command_name,
+            service_variant,
+            transaction_name,
+            status,
+            duration,
+        )
 
 
 class ManagementCommandMonitoringPipelineStep(PipelineStep):

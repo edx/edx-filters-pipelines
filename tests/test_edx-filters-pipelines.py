@@ -61,6 +61,10 @@ def test_management_command_monitoring_step_enabled(mocker):
         'edx_filters_pipelines.management.pipelines.monitoring.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled',
         return_value=True,
     )
+    mocker.patch(
+        'edx_filters_pipelines.management.pipelines.monitoring.time.monotonic',
+        side_effect=[10.0, 15.0],
+    )
     function_trace = mocker.patch(
         'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
         return_value=nullcontext(),
@@ -71,6 +75,7 @@ def test_management_command_monitoring_step_enabled(mocker):
     set_custom_attribute = mocker.patch(
         'edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute'
     )
+    log = mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.log')
 
     wrapped = step.run_filter(nullcontext(), 'migrate', 'lms')['command_contextmanager']
 
@@ -82,7 +87,22 @@ def test_management_command_monitoring_step_enabled(mocker):
     set_transaction_name.assert_called_once_with('lms.management.migrate')
     set_custom_attribute.assert_any_call('management_command.name', 'migrate')
     set_custom_attribute.assert_any_call('management_command.service_variant', 'lms')
+    set_custom_attribute.assert_any_call('management_command.duration_seconds', 5.0)
     set_custom_attribute.assert_any_call('management_command.status', 'success')
+    log.info.assert_any_call(
+        'Starting management command: %s service_variant=%s transaction_name=%s',
+        'migrate',
+        'lms',
+        'lms.management.migrate',
+    )
+    log.info.assert_any_call(
+        'Finished management command: %s service_variant=%s transaction_name=%s status=%s duration_seconds=%s',
+        'migrate',
+        'lms',
+        'lms.management.migrate',
+        'success',
+        5.0,
+    )
 
 
 def test_management_command_monitoring_step_uses_configured_trace_name(mocker):
@@ -108,6 +128,52 @@ def test_management_command_monitoring_step_uses_configured_trace_name(mocker):
 
     command_execution.assert_called_once()
     function_trace.assert_called_once_with('custom.management.trace')
+
+
+def test_monitor_management_command_logs_failure(mocker):
+    mocker.patch(
+        'edx_filters_pipelines.management.pipelines.monitoring.time.monotonic',
+        side_effect=[10.0, 15.0],
+    )
+    mocker.patch(
+        'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
+        return_value=nullcontext(),
+    )
+    set_custom_attribute = mocker.patch(
+        'edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute'
+    )
+    log = mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.log')
+    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
+
+    with pytest.raises(RuntimeError):
+        with monitor_management_command('migrate', 'lms'):
+            raise RuntimeError('boom')
+
+    log.info.assert_any_call(
+        'Starting management command: %s service_variant=%s transaction_name=%s',
+        'migrate',
+        'lms',
+        'lms.management.migrate',
+    )
+    log.exception.assert_called_once_with(
+        'Management command failed: %s service_variant=%s transaction_name=%s exception_class=%s error=%s',
+        'migrate',
+        'lms',
+        'lms.management.migrate',
+        'RuntimeError',
+        RuntimeError('boom'),
+    )
+    set_custom_attribute.assert_any_call('management_command.status', 'failure')
+    set_custom_attribute.assert_any_call('management_command.duration_seconds', 5.0)
+    set_custom_attribute.assert_any_call('management_command.exception_message', 'boom')
+    log.info.assert_any_call(
+        'Finished management command: %s service_variant=%s transaction_name=%s status=%s duration_seconds=%s',
+        'migrate',
+        'lms',
+        'lms.management.migrate',
+        'failure',
+        5.0,
+    )
 
 
 @pytest.mark.parametrize(
@@ -140,6 +206,9 @@ def test_monitor_management_command_exception_handling(
     if expected_exit_code is not None:
         assert exc_info.value.code == expected_exit_code
         set_custom_attribute.assert_any_call('management_command.exit_code', expected_exit_code)
+
+    if exception_class_recorded:
+        set_custom_attribute.assert_any_call('management_command.exception_message', str(raised_exception))
 
     if not exception_class_recorded:
         assert ('management_command.exception_class', raised_exception.__class__.__name__) not in [
