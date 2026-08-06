@@ -15,18 +15,14 @@ log = logging.getLogger(__name__)
 DEFAULT_TRACE_NAME = 'django.management.command'
 
 GITHUB_METADATA_ATTRIBUTE_MAP = {
-    'EDX_MC_JOB_NAME': 'management_command.job_name',
-    'EDX_MC_GROUP_NAME': 'management_command.group_name',
-    'EDX_MC_DESCRIPTION': 'management_command.description',
     'EDX_MC_GITHUB_RUN_URL': 'management_command.github_run_url',
-    'EDX_MC_GITHUB_WORKFLOW_URL': 'management_command.github_workflow_url',
-    'EDX_MC_CONFIG_PATH': 'management_command.config_path',
-    'EDX_MC_CONFIG_URL': 'management_command.config_url',
 }
 
 
 def _set_management_command_metadata_from_environment():
-    """Attach workflow metadata to traces when available from automation environments."""
+    """
+    Attach workflow metadata to traces when available from automation environments.
+    """
     metadata_attributes = {
         attribute_name: value
         for env_name, attribute_name in GITHUB_METADATA_ATTRIBUTE_MAP.items()

@@ -178,7 +178,7 @@ def test_monitor_management_command_logs_failure(mocker):
     )
 
 
-def test_monitor_management_command_sets_github_metadata_attributes(mocker):
+def test_monitor_management_command_sets_github_run_url_attribute(mocker):
     mocker.patch(
         'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
         return_value=nullcontext(),
@@ -190,10 +190,7 @@ def test_monitor_management_command_sets_github_metadata_attributes(mocker):
     mocker.patch.dict(
         'os.environ',
         {
-            'EDX_MC_JOB_NAME': 'notify_credentials',
-            'EDX_MC_GROUP_NAME': 'grading',
             'EDX_MC_GITHUB_RUN_URL': 'https://github.com/edx/edx-internal/actions/runs/123',
-            'EDX_MC_CONFIG_PATH': 'argocd/applications/edxapp-lms/management-commands/stage.yml',
         },
         clear=False,
     )
@@ -201,15 +198,9 @@ def test_monitor_management_command_sets_github_metadata_attributes(mocker):
     with monitor_management_command('migrate', 'lms'):
         pass
 
-    set_custom_attribute.assert_any_call('management_command.job_name', 'notify_credentials')
-    set_custom_attribute.assert_any_call('management_command.group_name', 'grading')
     set_custom_attribute.assert_any_call(
         'management_command.github_run_url',
         'https://github.com/edx/edx-internal/actions/runs/123',
-    )
-    set_custom_attribute.assert_any_call(
-        'management_command.config_path',
-        'argocd/applications/edxapp-lms/management-commands/stage.yml',
     )
 
 
