@@ -9,6 +9,7 @@ from openedx_filters.learning.filters import StudentRegistrationRequested
 
 from edx_filters_pipelines.auth.pipelines.registration import PreventForbiddenUsernameRegistration
 from edx_filters_pipelines.management.pipelines.monitoring import (
+    GITHUB_METADATA_ATTRIBUTE_MAP,
     ManagementCommandMonitoringPipelineStep,
     monitor_management_command,
 )
@@ -175,6 +176,92 @@ def test_monitor_management_command_logs_failure(mocker):
         'failure',
         5.0,
     )
+
+
+def test_monitor_management_command_sets_github_metadata_attributes(mocker):
+    mocker.patch(
+        'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
+        return_value=nullcontext(),
+    )
+    set_custom_attribute = mocker.patch(
+        'edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute'
+    )
+    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
+    mocker.patch.dict(
+        'os.environ',
+        {
+            'EDX_MC_JOB_NAME': 'notify_credentials',
+            'EDX_MC_GROUP_NAME': 'grading',
+            'EDX_MC_GITHUB_RUN_URL': 'https://github.com/edx/edx-internal/actions/runs/123',
+            'EDX_MC_CONFIG_PATH': 'argocd/applications/edxapp-lms/management-commands/stage.yml',
+        },
+        clear=False,
+    )
+
+    with monitor_management_command('migrate', 'lms'):
+        pass
+
+    set_custom_attribute.assert_any_call('management_command.job_name', 'notify_credentials')
+    set_custom_attribute.assert_any_call('management_command.group_name', 'grading')
+    set_custom_attribute.assert_any_call(
+        'management_command.github_run_url',
+        'https://github.com/edx/edx-internal/actions/runs/123',
+    )
+    set_custom_attribute.assert_any_call(
+        'management_command.config_path',
+        'argocd/applications/edxapp-lms/management-commands/stage.yml',
+    )
+
+
+def test_monitor_management_command_metadata_mapping_uses_all_defined_keys(mocker):
+    mocker.patch(
+        'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
+        return_value=nullcontext(),
+    )
+    set_custom_attribute = mocker.patch(
+        'edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute'
+    )
+    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
+
+    metadata_env = {
+        env_name: f'value-for-{env_name.lower()}'
+        for env_name in GITHUB_METADATA_ATTRIBUTE_MAP
+    }
+    mocker.patch.dict('os.environ', metadata_env, clear=False)
+
+    with monitor_management_command('migrate', 'lms'):
+        pass
+
+    for env_name, attribute_name in GITHUB_METADATA_ATTRIBUTE_MAP.items():
+        set_custom_attribute.assert_any_call(attribute_name, metadata_env[env_name])
+
+
+def test_monitor_management_command_metadata_mapping_ignores_blank_values(mocker):
+    mocker.patch(
+        'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
+        return_value=nullcontext(),
+    )
+    set_custom_attribute = mocker.patch(
+        'edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute'
+    )
+    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
+
+    metadata_env = {
+        env_name: '   '
+        for env_name in GITHUB_METADATA_ATTRIBUTE_MAP
+    }
+    mocker.patch.dict('os.environ', metadata_env, clear=False)
+
+    with monitor_management_command('migrate', 'lms'):
+        pass
+
+    metadata_calls = [
+        call.args[0]
+        for call in set_custom_attribute.call_args_list
+        if call.args[0].startswith('management_command.')
+    ]
+    for attribute_name in GITHUB_METADATA_ATTRIBUTE_MAP.values():
+        assert attribute_name not in metadata_calls
 
 
 @pytest.mark.parametrize(

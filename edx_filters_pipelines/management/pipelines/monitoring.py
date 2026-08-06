@@ -1,6 +1,7 @@
 """Pipeline steps for management command observability."""
 
 import logging
+import os
 import time
 from contextlib import contextmanager, nullcontext
 
@@ -12,6 +13,28 @@ from edx_filters_pipelines.waffle import ENABLE_MANAGEMENT_COMMAND_MONITORING
 log = logging.getLogger(__name__)
 
 DEFAULT_TRACE_NAME = 'django.management.command'
+
+GITHUB_METADATA_ATTRIBUTE_MAP = {
+    'EDX_MC_JOB_NAME': 'management_command.job_name',
+    'EDX_MC_GROUP_NAME': 'management_command.group_name',
+    'EDX_MC_DESCRIPTION': 'management_command.description',
+    'EDX_MC_GITHUB_RUN_URL': 'management_command.github_run_url',
+    'EDX_MC_GITHUB_WORKFLOW_URL': 'management_command.github_workflow_url',
+    'EDX_MC_CONFIG_PATH': 'management_command.config_path',
+    'EDX_MC_CONFIG_URL': 'management_command.config_url',
+}
+
+
+def _set_management_command_metadata_from_environment():
+    """Attach workflow metadata to traces when available from automation environments."""
+    metadata_attributes = {
+        attribute_name: value
+        for env_name, attribute_name in GITHUB_METADATA_ATTRIBUTE_MAP.items()
+        if (value := os.getenv(env_name, '').strip())
+    }
+
+    for attribute_name, value in metadata_attributes.items():
+        set_custom_attribute(attribute_name, value)
 
 
 @contextmanager
@@ -25,6 +48,7 @@ def monitor_management_command(command_name, service_variant, trace_name=DEFAULT
     set_custom_attribute('management_command.name', command_name)
     set_custom_attribute('management_command.service_variant', service_variant)
     set_custom_attribute('management_command.transaction_name', transaction_name)
+    _set_management_command_metadata_from_environment()
     log.info(
         'Starting management command: %s service_variant=%s transaction_name=%s',
         command_name,
