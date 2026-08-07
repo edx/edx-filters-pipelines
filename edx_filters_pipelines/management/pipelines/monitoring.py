@@ -14,24 +14,6 @@ log = logging.getLogger(__name__)
 
 DEFAULT_TRACE_NAME = 'django.management.command'
 
-GITHUB_METADATA_ATTRIBUTE_MAP = {
-    'EDX_MC_GITHUB_RUN_URL': 'management_command.github_run_url',
-}
-
-
-def _set_management_command_metadata_from_environment():
-    """
-    Attach workflow metadata to traces when available from automation environments.
-    """
-    metadata_attributes = {
-        attribute_name: value
-        for env_name, attribute_name in GITHUB_METADATA_ATTRIBUTE_MAP.items()
-        if (value := os.getenv(env_name, '').strip())
-    }
-
-    for attribute_name, value in metadata_attributes.items():
-        set_custom_attribute(attribute_name, value)
-
 
 @contextmanager
 def monitor_management_command(command_name, service_variant, trace_name=DEFAULT_TRACE_NAME):
@@ -44,7 +26,9 @@ def monitor_management_command(command_name, service_variant, trace_name=DEFAULT
     set_custom_attribute('management_command.name', command_name)
     set_custom_attribute('management_command.service_variant', service_variant)
     set_custom_attribute('management_command.transaction_name', transaction_name)
-    _set_management_command_metadata_from_environment()
+    github_run_url = os.getenv('EDX_MC_GITHUB_RUN_URL', '').strip()
+    if github_run_url:
+        set_custom_attribute('management_command.github_run_url', github_run_url)
     log.info(
         'Starting management command: %s service_variant=%s transaction_name=%s',
         command_name,

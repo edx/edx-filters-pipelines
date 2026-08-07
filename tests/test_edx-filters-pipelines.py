@@ -9,7 +9,6 @@ from openedx_filters.learning.filters import StudentRegistrationRequested
 
 from edx_filters_pipelines.auth.pipelines.registration import PreventForbiddenUsernameRegistration
 from edx_filters_pipelines.management.pipelines.monitoring import (
-    GITHUB_METADATA_ATTRIBUTE_MAP,
     ManagementCommandMonitoringPipelineStep,
     monitor_management_command,
 )
@@ -204,7 +203,7 @@ def test_monitor_management_command_sets_github_run_url_attribute(mocker):
     )
 
 
-def test_monitor_management_command_metadata_mapping_uses_all_defined_keys(mocker):
+def test_monitor_management_command_sets_github_run_url_when_present(mocker):
     mocker.patch(
         'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
         return_value=nullcontext(),
@@ -214,20 +213,22 @@ def test_monitor_management_command_metadata_mapping_uses_all_defined_keys(mocke
     )
     mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
 
-    metadata_env = {
-        env_name: f'value-for-{env_name.lower()}'
-        for env_name in GITHUB_METADATA_ATTRIBUTE_MAP
-    }
-    mocker.patch.dict('os.environ', metadata_env, clear=False)
+    mocker.patch.dict(
+        'os.environ',
+        {'EDX_MC_GITHUB_RUN_URL': 'https://github.com/edx/edx-internal/actions/runs/999'},
+        clear=False,
+    )
 
     with monitor_management_command('migrate', 'lms'):
         pass
 
-    for env_name, attribute_name in GITHUB_METADATA_ATTRIBUTE_MAP.items():
-        set_custom_attribute.assert_any_call(attribute_name, metadata_env[env_name])
+    set_custom_attribute.assert_any_call(
+        'management_command.github_run_url',
+        'https://github.com/edx/edx-internal/actions/runs/999',
+    )
 
 
-def test_monitor_management_command_metadata_mapping_ignores_blank_values(mocker):
+def test_monitor_management_command_ignores_blank_github_run_url(mocker):
     mocker.patch(
         'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
         return_value=nullcontext(),
@@ -237,11 +238,7 @@ def test_monitor_management_command_metadata_mapping_ignores_blank_values(mocker
     )
     mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
 
-    metadata_env = {
-        env_name: '   '
-        for env_name in GITHUB_METADATA_ATTRIBUTE_MAP
-    }
-    mocker.patch.dict('os.environ', metadata_env, clear=False)
+    mocker.patch.dict('os.environ', {'EDX_MC_GITHUB_RUN_URL': '   '}, clear=False)
 
     with monitor_management_command('migrate', 'lms'):
         pass
@@ -251,8 +248,7 @@ def test_monitor_management_command_metadata_mapping_ignores_blank_values(mocker
         for call in set_custom_attribute.call_args_list
         if call.args[0].startswith('management_command.')
     ]
-    for attribute_name in GITHUB_METADATA_ATTRIBUTE_MAP.values():
-        assert attribute_name not in metadata_calls
+    assert 'management_command.github_run_url' not in metadata_calls
 
 
 @pytest.mark.parametrize(
