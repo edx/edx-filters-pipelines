@@ -48,7 +48,7 @@ coverage[toml]==7.10.6
     #   pytest-cov
 dill==0.4.0
     # via pylint
-django==4.2.24
+django<6.0
     # via
     #   -c https:/raw.githubusercontent.com/edx/edx-lint/master/edx_lint/files/common_constraints.txt
     #   -r requirements/base.txt
