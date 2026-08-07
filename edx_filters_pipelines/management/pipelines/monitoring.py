@@ -44,12 +44,12 @@ def monitor_management_command(command_name, service_variant, trace_name=DEFAULT
             yield
         status = 'success'
     except SystemExit as exc:
-        set_custom_attribute('management_command.exception_class', exc.__class__.__name__)
-        set_custom_attribute('management_command.exit_code', exc.code)
-        set_custom_attribute('management_command.exception_message', str(exc))
         if exc.code in (0, None):
             status = 'success'
         else:
+            set_custom_attribute('management_command.exception_class', exc.__class__.__name__)
+            set_custom_attribute('management_command.exit_code', exc.code)
+            set_custom_attribute('management_command.exception_message', str(exc))
             log.exception(
                 'Management command failed: %s service_variant=%s transaction_name=%s exit_code=%s error=%s',
                 command_name,

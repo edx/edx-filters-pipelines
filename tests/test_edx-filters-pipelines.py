@@ -177,7 +177,14 @@ def test_monitor_management_command_logs_failure(mocker):
     )
 
 
-def test_monitor_management_command_sets_github_run_url_attribute(mocker):
+@pytest.mark.parametrize(
+    'run_url',
+    [
+        'https://github.com/edx/edx-internal/actions/runs/123',
+        'https://github.com/edx/edx-internal/actions/runs/999',
+    ],
+)
+def test_monitor_management_command_sets_github_run_url_attribute(mocker, run_url):
     mocker.patch(
         'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
         return_value=nullcontext(),
@@ -189,7 +196,7 @@ def test_monitor_management_command_sets_github_run_url_attribute(mocker):
     mocker.patch.dict(
         'os.environ',
         {
-            'EDX_MC_GITHUB_RUN_URL': 'https://github.com/edx/edx-internal/actions/runs/123',
+            'EDX_MC_GITHUB_RUN_URL': run_url,
         },
         clear=False,
     )
@@ -199,32 +206,7 @@ def test_monitor_management_command_sets_github_run_url_attribute(mocker):
 
     set_custom_attribute.assert_any_call(
         'management_command.github_run_url',
-        'https://github.com/edx/edx-internal/actions/runs/123',
-    )
-
-
-def test_monitor_management_command_sets_github_run_url_when_present(mocker):
-    mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
-        return_value=nullcontext(),
-    )
-    set_custom_attribute = mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute'
-    )
-    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
-
-    mocker.patch.dict(
-        'os.environ',
-        {'EDX_MC_GITHUB_RUN_URL': 'https://github.com/edx/edx-internal/actions/runs/999'},
-        clear=False,
-    )
-
-    with monitor_management_command('migrate', 'lms'):
-        pass
-
-    set_custom_attribute.assert_any_call(
-        'management_command.github_run_url',
-        'https://github.com/edx/edx-internal/actions/runs/999',
+        run_url,
     )
 
 
@@ -254,7 +236,8 @@ def test_monitor_management_command_ignores_blank_github_run_url(mocker):
 @pytest.mark.parametrize(
     'raised_exception, expected_status, expected_exit_code, exception_class_recorded',
     [
-        pytest.param(SystemExit(0), 'success', 0, True, id='system-exit-zero'),
+        pytest.param(SystemExit(0), 'success', None, False, id='system-exit-zero'),
+        pytest.param(SystemExit(1), 'failure', 1, True, id='system-exit-nonzero'),
         pytest.param(KeyboardInterrupt(), 'failure', None, False, id='keyboard-interrupt'),
     ],
 )
@@ -281,6 +264,10 @@ def test_monitor_management_command_exception_handling(
     if expected_exit_code is not None:
         assert exc_info.value.code == expected_exit_code
         set_custom_attribute.assert_any_call('management_command.exit_code', expected_exit_code)
+    else:
+        assert ('management_command.exit_code',) not in [
+            call.args[:1] for call in set_custom_attribute.call_args_list
+        ]
 
     if exception_class_recorded:
         set_custom_attribute.assert_any_call('management_command.exception_message', str(raised_exception))
