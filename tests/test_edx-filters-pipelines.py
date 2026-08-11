@@ -162,7 +162,7 @@ def test_monitor_management_command_logs_failure(mocker):
         'lms.management.migrate',
     )
     assert log.exception.call_count == 1
-    assert log.exception.call_args.args[:5] == (
+    assert log.exception.call_args.args[:6] == (
         'Management command failed: %s service_variant=%s '
         'operation_name=%s resource_name=%s exception_class=%s error=%s',
         'migrate',
@@ -171,7 +171,7 @@ def test_monitor_management_command_logs_failure(mocker):
         'lms.management.migrate',
         'RuntimeError',
     )
-    assert str(log.exception.call_args.args[5]) == 'boom'
+    assert str(log.exception.call_args.args[6]) == 'boom'
     set_custom_attribute.assert_any_call('management_command.status', 'failure')
     set_custom_attribute.assert_any_call('management_command.duration_seconds', 5.0)
     set_custom_attribute.assert_any_call('management_command.exception_message', 'boom')
