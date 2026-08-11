@@ -83,33 +83,37 @@ def test_management_command_monitoring_step_enabled(mocker):
         command_execution()
 
     command_execution.assert_called_once()
-    function_trace.assert_called_once_with('django.management.command')
+    function_trace.assert_called_once_with('lms.management.migrate', operation_name='django.management.command')
     set_transaction_name.assert_called_once_with('lms.management.migrate')
     set_custom_attribute.assert_any_call('management_command.name', 'migrate')
     set_custom_attribute.assert_any_call('management_command.service_variant', 'lms')
     set_custom_attribute.assert_any_call('management_command.duration_seconds', 5.0)
     set_custom_attribute.assert_any_call('management_command.status', 'success')
     log.info.assert_any_call(
-        'Starting management command: %s service_variant=%s transaction_name=%s',
+        'Starting management command: %s service_variant=%s '
+        'operation_name=%s resource_name=%s',
         'migrate',
         'lms',
+        'django.management.command',
         'lms.management.migrate',
     )
     log.info.assert_any_call(
-        'Finished management command: %s service_variant=%s transaction_name=%s status=%s duration_seconds=%s',
+        'Finished management command: %s service_variant=%s '
+        'operation_name=%s resource_name=%s status=%s duration_seconds=%s',
         'migrate',
         'lms',
+        'django.management.command',
         'lms.management.migrate',
         'success',
         5.0,
     )
 
 
-def test_management_command_monitoring_step_uses_configured_trace_name(mocker):
+def test_management_command_monitoring_step_uses_configured_operation_name(mocker):
     step = ManagementCommandMonitoringPipelineStep(
         'org.openedx.platform.management.command.contextmanager.requested.v1',
         'edx_filters_pipelines.management.pipelines.monitoring.ManagementCommandMonitoringPipelineStep',
-        trace_name='custom.management.trace',
+        operation_name='custom.management.operation',
     )
     command_execution = mocker.Mock()
     mocker.patch(
@@ -127,7 +131,7 @@ def test_management_command_monitoring_step_uses_configured_trace_name(mocker):
         command_execution()
 
     command_execution.assert_called_once()
-    function_trace.assert_called_once_with('custom.management.trace')
+    function_trace.assert_called_once_with('cms.management.collectstatic', operation_name='custom.management.operation')
 
 
 def test_monitor_management_command_logs_failure(mocker):
@@ -150,16 +154,20 @@ def test_monitor_management_command_logs_failure(mocker):
             raise RuntimeError('boom')
 
     log.info.assert_any_call(
-        'Starting management command: %s service_variant=%s transaction_name=%s',
+        'Starting management command: %s service_variant=%s '
+        'operation_name=%s resource_name=%s',
         'migrate',
         'lms',
+        'django.management.command',
         'lms.management.migrate',
     )
     assert log.exception.call_count == 1
     assert log.exception.call_args.args[:5] == (
-        'Management command failed: %s service_variant=%s transaction_name=%s exception_class=%s error=%s',
+        'Management command failed: %s service_variant=%s '
+        'operation_name=%s resource_name=%s exception_class=%s error=%s',
         'migrate',
         'lms',
+        'django.management.command',
         'lms.management.migrate',
         'RuntimeError',
     )
@@ -168,9 +176,11 @@ def test_monitor_management_command_logs_failure(mocker):
     set_custom_attribute.assert_any_call('management_command.duration_seconds', 5.0)
     set_custom_attribute.assert_any_call('management_command.exception_message', 'boom')
     log.info.assert_any_call(
-        'Finished management command: %s service_variant=%s transaction_name=%s status=%s duration_seconds=%s',
+        'Finished management command: %s service_variant=%s '
+        'operation_name=%s resource_name=%s status=%s duration_seconds=%s',
         'migrate',
         'lms',
+        'django.management.command',
         'lms.management.migrate',
         'failure',
         5.0,
