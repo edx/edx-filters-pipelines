@@ -31,10 +31,9 @@ def monitor_management_command(
     The operation name identifies the type of operation, while the resource
     name identifies the specific management command being executed.
     """
-    resource_name = f'{service_variant}.management.{command_name}'
+    resource_name = command_name
 
     set_monitoring_transaction_name(resource_name)
-    set_custom_attribute('management_command.name', command_name)
     set_custom_attribute('management_command.service_variant', service_variant)
 
     github_run_url = os.getenv('EDX_MC_GITHUB_RUN_URL', '').strip()

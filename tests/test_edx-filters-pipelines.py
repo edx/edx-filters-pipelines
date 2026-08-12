@@ -83,9 +83,8 @@ def test_management_command_monitoring_step_enabled(mocker):
         command_execution()
 
     command_execution.assert_called_once()
-    function_trace.assert_called_once_with('lms.management.migrate', operation_name='django.management.command')
-    set_transaction_name.assert_called_once_with('lms.management.migrate')
-    set_custom_attribute.assert_any_call('management_command.name', 'migrate')
+    function_trace.assert_called_once_with('migrate', operation_name='django.management.command')
+    set_transaction_name.assert_called_once_with('migrate')
     set_custom_attribute.assert_any_call('management_command.service_variant', 'lms')
     set_custom_attribute.assert_any_call('management_command.duration_seconds', 5.0)
     set_custom_attribute.assert_any_call('management_command.status', 'success')
@@ -95,7 +94,7 @@ def test_management_command_monitoring_step_enabled(mocker):
         'migrate',
         'lms',
         'django.management.command',
-        'lms.management.migrate',
+        'migrate',
     )
     log.info.assert_any_call(
         'Finished management command: %s service_variant=%s '
@@ -103,7 +102,7 @@ def test_management_command_monitoring_step_enabled(mocker):
         'migrate',
         'lms',
         'django.management.command',
-        'lms.management.migrate',
+        'migrate',
         'success',
         5.0,
     )
@@ -131,7 +130,7 @@ def test_management_command_monitoring_step_uses_configured_operation_name(mocke
         command_execution()
 
     command_execution.assert_called_once()
-    function_trace.assert_called_once_with('cms.management.collectstatic', operation_name='custom.management.operation')
+    function_trace.assert_called_once_with('collectstatic', operation_name='custom.management.operation')
 
 
 def test_monitor_management_command_logs_failure(mocker):
@@ -159,19 +158,19 @@ def test_monitor_management_command_logs_failure(mocker):
         'migrate',
         'lms',
         'django.management.command',
-        'lms.management.migrate',
+        'migrate',
     )
     assert log.exception.call_count == 1
-    assert log.exception.call_args.args[:6] == (
+    assert log.exception.call_args.args[:5] == (
         'Management command failed: %s service_variant=%s '
         'operation_name=%s resource_name=%s exception_class=%s error=%s',
         'migrate',
         'lms',
         'django.management.command',
-        'lms.management.migrate',
+        'migrate',
         'RuntimeError',
     )
-    assert str(log.exception.call_args.args[6]) == 'boom'
+    assert str(log.exception.call_args.args[5]) == 'boom'
     set_custom_attribute.assert_any_call('management_command.status', 'failure')
     set_custom_attribute.assert_any_call('management_command.duration_seconds', 5.0)
     set_custom_attribute.assert_any_call('management_command.exception_message', 'boom')
@@ -181,7 +180,7 @@ def test_monitor_management_command_logs_failure(mocker):
         'migrate',
         'lms',
         'django.management.command',
-        'lms.management.migrate',
+        'migrate',
         'failure',
         5.0,
     )
