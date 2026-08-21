@@ -14,7 +14,11 @@ Change Log
 Unreleased
 **********
 
-*
+1.1.2 - 2026-08-07
+******************
+
+* Add Django 5.2 tox/CI coverage.
+* Keep tox test deps on compiled requirement pins.
 
 0.1.0 – 2025-08-05
 **********************************************
