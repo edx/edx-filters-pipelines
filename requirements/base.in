@@ -7,5 +7,4 @@ pytest
 pytest-cov
 django-crum
 google-cloud-recaptcha-enterprise
-edx-django-utils>=8.1.0  # Requires operation_name support.
 edx-toggles
