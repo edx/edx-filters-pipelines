@@ -2,4 +2,4 @@
 A Python package that defines and manages custom filter pipelines for use with edx-filters.
 """
 
-__version__ = '1.1.2'
+__version__ = '1.2.0'

@@ -5,6 +5,7 @@
 
 pytest
 pytest-cov                # pytest extension for code coverage statistics
+pytest-mock               # pytest plugin providing mocker fixture
 edx-lint
 pylint-celery
 setuptools

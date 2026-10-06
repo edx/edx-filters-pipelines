@@ -95,7 +95,7 @@ docutils==0.21.2
     #   readme-renderer
     #   restructuredtext-lint
     #   sphinx
-edx-django-utils==8.0.0
+edx-django-utils==8.1.0
     # via
     #   -r requirements/test.txt
     #   edx-toggles
