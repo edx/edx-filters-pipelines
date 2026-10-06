@@ -76,7 +76,7 @@ django-waffle==5.0.0
     #   edx-toggles
 docutils==0.22
     # via readme-renderer
-edx-django-utils==8.0.0
+edx-django-utils==8.1.0
     # via
     #   -r requirements/test.txt
     #   edx-toggles
