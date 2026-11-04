@@ -39,8 +39,10 @@ django-waffle==5.0.0
     # via
     #   edx-django-utils
     #   edx-toggles
-edx-django-utils==8.0.0
-    # via edx-toggles
+edx-django-utils==8.1.0
+    # via
+    #   -r requirements/base.in
+    #   edx-toggles
 edx-toggles==5.4.1
     # via -r requirements/base.in
 google-api-core[grpc]==2.25.1

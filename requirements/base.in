@@ -2,6 +2,7 @@
 -c constraints.txt
 
 setuptools
+edx-django-utils>=8.1.0
 openedx-filters
 pytest
 pytest-cov

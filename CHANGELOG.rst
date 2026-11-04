@@ -14,6 +14,18 @@ Change Log
 Unreleased
 **********
 
+Added
+=====
+
+
+1.2.0 - 2026-11-04
+******************
+
+Added
+=====
+
+* Management-command monitoring pipeline support.
+
 1.1.2 - 2026-08-07
 ******************
 
