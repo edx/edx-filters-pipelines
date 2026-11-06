@@ -2,7 +2,7 @@
 Tests for edx-filters-pipelines.py.
 """
 
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 
 import pytest
 from openedx_filters.learning.filters import StudentRegistrationRequested
@@ -287,3 +287,123 @@ def test_monitor_management_command_exception_handling(
         ]
 
     set_custom_attribute.assert_any_call('management_command.status', expected_status)
+
+
+MONITORING = 'edx_filters_pipelines.management.pipelines.monitoring'
+
+
+def test_monitor_management_command_survives_missing_root_span(mocker):
+    """
+    Without ddtrace-run there is no root span, and set_monitoring_transaction_name raises AttributeError.
+    The command must still run and its attributes must still be recorded.
+    """
+    mocker.patch(f'{MONITORING}.function_trace', return_value=nullcontext())
+    mocker.patch(
+        f'{MONITORING}.set_monitoring_transaction_name',
+        side_effect=AttributeError("'NoneType' object has no attribute 'resource'"),
+    )
+    set_custom_attribute = mocker.patch(f'{MONITORING}.set_custom_attribute')
+    log = mocker.patch(f'{MONITORING}.log')
+    command_execution = mocker.Mock()
+
+    with monitor_management_command('migrate', 'lms'):
+        command_execution()
+
+    command_execution.assert_called_once()
+    assert log.exception.call_count == 1
+    set_custom_attribute.assert_any_call('management_command.service_variant', 'lms')
+    set_custom_attribute.assert_any_call('management_command.status', 'success')
+
+
+def test_monitor_management_command_survives_failing_span(mocker):
+    mocker.patch(f'{MONITORING}.function_trace', side_effect=RuntimeError('tracer unavailable'))
+    mocker.patch(f'{MONITORING}.set_monitoring_transaction_name')
+    mocker.patch(f'{MONITORING}.set_custom_attribute')
+    mocker.patch(f'{MONITORING}.log')
+    command_execution = mocker.Mock()
+
+    with monitor_management_command('migrate', 'lms'):
+        command_execution()
+
+    command_execution.assert_called_once()
+
+
+def test_monitor_management_command_survives_failing_custom_attribute(mocker):
+    mocker.patch(f'{MONITORING}.function_trace', return_value=nullcontext())
+    mocker.patch(f'{MONITORING}.set_monitoring_transaction_name')
+    mocker.patch(f'{MONITORING}.set_custom_attribute', side_effect=RuntimeError('boom'))
+    mocker.patch(f'{MONITORING}.log')
+    command_execution = mocker.Mock()
+
+    with monitor_management_command('migrate', 'lms'):
+        command_execution()
+
+    command_execution.assert_called_once()
+
+
+def test_monitor_management_command_still_raises_command_error_when_monitoring_fails(mocker):
+    mocker.patch(f'{MONITORING}.function_trace', return_value=nullcontext())
+    mocker.patch(f'{MONITORING}.set_monitoring_transaction_name', side_effect=AttributeError('no span'))
+    mocker.patch(f'{MONITORING}.set_custom_attribute', side_effect=RuntimeError('monitoring down'))
+    mocker.patch(f'{MONITORING}.log')
+
+    with pytest.raises(ValueError, match='command failed'):
+        with monitor_management_command('migrate', 'lms'):
+            raise ValueError('command failed')
+
+
+def test_monitor_management_command_sets_attributes_while_span_is_open(mocker):
+    events = []
+
+    @contextmanager
+    def fake_span(name, operation_name):
+        events.append(('span_open', name, operation_name))
+        yield
+        events.append(('span_close',))
+
+    mocker.patch(f'{MONITORING}.function_trace', side_effect=fake_span)
+    mocker.patch(
+        f'{MONITORING}.set_monitoring_transaction_name',
+        side_effect=lambda name: events.append(('transaction_name', name)),
+    )
+    mocker.patch(
+        f'{MONITORING}.set_custom_attribute',
+        side_effect=lambda key, value: events.append(('attribute', key)),
+    )
+    mocker.patch(f'{MONITORING}.log')
+
+    with monitor_management_command('migrate', 'lms'):
+        events.append(('command',))
+
+    assert events[0] == ('span_open', 'migrate', 'django.management.command')
+    assert events[-1] == ('span_close',)
+    assert events.index(('transaction_name', 'migrate')) > 0
+    assert events.index(('attribute', 'management_command.status')) < events.index(('span_close',))
+    assert events.index(('attribute', 'management_command.duration_seconds')) < events.index(('span_close',))
+    assert events.index(('command',)) < events.index(('attribute', 'management_command.status'))
+
+
+def test_monitor_management_command_records_status_on_span_for_failure(mocker):
+    events = []
+
+    @contextmanager
+    def fake_span(name, operation_name):  # pylint: disable=unused-argument
+        try:
+            yield
+        finally:
+            events.append('span_close')
+
+    mocker.patch(f'{MONITORING}.function_trace', side_effect=fake_span)
+    mocker.patch(f'{MONITORING}.set_monitoring_transaction_name')
+    mocker.patch(
+        f'{MONITORING}.set_custom_attribute',
+        side_effect=lambda key, value: events.append((key, value)),
+    )
+    mocker.patch(f'{MONITORING}.log')
+
+    with pytest.raises(RuntimeError):
+        with monitor_management_command('migrate', 'lms'):
+            raise RuntimeError('boom')
+
+    assert ('management_command.status', 'failure') in events
+    assert events.index(('management_command.status', 'failure')) < events.index('span_close')
