@@ -14,9 +14,19 @@ Change Log
 Unreleased
 **********
 
-Added
+1.2.1 - 2026-11-06
+******************
+
+Fixed
 =====
 
+* Management-command monitoring no longer breaks commands when there is no
+  active Datadog root span (for example when ``manage.py`` is not run under
+  ``ddtrace-run``). The span is now opened before the transaction name and
+  attributes are set, and every monitoring call is best-effort: failures are
+  logged and the command continues.
+* ``management_command.status`` and ``management_command.duration_seconds``
+  are now set while the span is still open, so they are no longer lost.
 
 1.2.0 - 2026-11-04
 ******************
