@@ -3,6 +3,7 @@ Tests for edx-filters-pipelines.py.
 """
 
 from contextlib import contextmanager, nullcontext
+from unittest.mock import Mock, patch
 
 import pytest
 from openedx_filters.learning.filters import StudentRegistrationRequested
@@ -36,11 +37,11 @@ STEP_ARGS = (
 )
 
 
-def test_management_command_monitoring_step_disabled(mocker):
+@patch(f'{MONITORING}.function_trace')
+@patch(f'{MONITORING}.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled', return_value=False)
+def test_management_command_monitoring_step_disabled(mock_toggle, mock_function_trace):
     step = ManagementCommandMonitoringPipelineStep(*STEP_ARGS)
-    mock_command_execution = mocker.Mock()
-    mock_toggle = mocker.patch(f'{MONITORING}.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled', return_value=False)
-    mock_function_trace = mocker.patch(f'{MONITORING}.function_trace')
+    mock_command_execution = Mock()
 
     result = step.run_filter(nullcontext(), 'migrate', 'lms')
 
@@ -53,12 +54,12 @@ def test_management_command_monitoring_step_disabled(mocker):
     mock_function_trace.assert_not_called()
 
 
-def test_management_command_monitoring_step_enabled(mocker):
+@patch(f'{MONITORING}.set_custom_attribute')
+@patch(f'{MONITORING}.function_trace', return_value=nullcontext())
+@patch(f'{MONITORING}.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled', return_value=True)
+def test_management_command_monitoring_step_enabled(_mock_toggle, mock_function_trace, mock_set_custom_attribute):
     step = ManagementCommandMonitoringPipelineStep(*STEP_ARGS)
-    mock_command_execution = mocker.Mock()
-    mocker.patch(f'{MONITORING}.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled', return_value=True)
-    mock_function_trace = mocker.patch(f'{MONITORING}.function_trace', return_value=nullcontext())
-    mock_set_custom_attribute = mocker.patch(f'{MONITORING}.set_custom_attribute')
+    mock_command_execution = Mock()
 
     with step.run_filter(nullcontext(), 'migrate', 'lms')['command_contextmanager']:
         mock_command_execution()
@@ -68,12 +69,16 @@ def test_management_command_monitoring_step_enabled(mocker):
     mock_set_custom_attribute.assert_any_call('management_command.service_variant', 'lms')
 
 
-def test_management_command_monitoring_step_uses_configured_operation_name(mocker):
+@patch(f'{MONITORING}.set_custom_attribute')
+@patch(f'{MONITORING}.function_trace', return_value=nullcontext())
+@patch(f'{MONITORING}.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled', return_value=True)
+def test_management_command_monitoring_step_uses_configured_operation_name(
+    _mock_toggle,
+    mock_function_trace,
+    _mock_set_custom_attribute,
+):
     step = ManagementCommandMonitoringPipelineStep(*STEP_ARGS, operation_name='custom.management.operation')
-    mock_command_execution = mocker.Mock()
-    mocker.patch(f'{MONITORING}.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled', return_value=True)
-    mock_function_trace = mocker.patch(f'{MONITORING}.function_trace', return_value=nullcontext())
-    mocker.patch(f'{MONITORING}.set_custom_attribute')
+    mock_command_execution = Mock()
 
     with step.run_filter(nullcontext(), 'collectstatic', 'cms')['command_contextmanager']:
         mock_command_execution()
@@ -82,7 +87,9 @@ def test_management_command_monitoring_step_uses_configured_operation_name(mocke
     mock_function_trace.assert_called_once_with('collectstatic', operation_name='custom.management.operation')
 
 
-def test_monitor_management_command_span_wraps_the_command(mocker):
+@patch(f'{MONITORING}.set_custom_attribute')
+@patch(f'{MONITORING}.function_trace')
+def test_monitor_management_command_span_wraps_the_command(mock_function_trace, _mock_set_custom_attribute):
     events = []
 
     @contextmanager
@@ -93,8 +100,7 @@ def test_monitor_management_command_span_wraps_the_command(mocker):
         finally:
             events.append(('span_close',))
 
-    mocker.patch(f'{MONITORING}.function_trace', side_effect=fake_span)
-    mocker.patch(f'{MONITORING}.set_custom_attribute')
+    mock_function_trace.side_effect = fake_span
 
     with monitor_management_command('migrate', 'lms'):
         events.append(('command',))
@@ -106,17 +112,19 @@ def test_monitor_management_command_span_wraps_the_command(mocker):
     ]
 
 
-@pytest.mark.parametrize(
-    'failing',
-    ['function_trace', 'set_custom_attribute'],
-)
-def test_monitor_management_command_runs_command_when_monitoring_fails(mocker, failing):
-    """A monitoring failure (e.g. no root span) is logged and the command still runs."""
-    mocker.patch(f'{MONITORING}.function_trace', return_value=nullcontext())
-    mocker.patch(f'{MONITORING}.set_custom_attribute')
-    mocker.patch(f'{MONITORING}.{failing}', side_effect=AttributeError("'NoneType' object has no attribute 'resource'"))
-    mock_log = mocker.patch(f'{MONITORING}.log')
-    mock_command_execution = mocker.Mock()
+NO_ROOT_SPAN_ERROR = AttributeError("'NoneType' object has no attribute 'resource'")
+
+
+@patch(f'{MONITORING}.log')
+@patch(f'{MONITORING}.set_custom_attribute')
+@patch(f'{MONITORING}.function_trace', side_effect=NO_ROOT_SPAN_ERROR)
+def test_monitor_management_command_runs_command_when_span_fails(
+    _mock_function_trace,
+    _mock_set_custom_attribute,
+    mock_log,
+):
+    """A failure opening the span (e.g. no root span) is logged and the command still runs."""
+    mock_command_execution = Mock()
 
     with monitor_management_command('migrate', 'lms'):
         mock_command_execution()
@@ -125,10 +133,27 @@ def test_monitor_management_command_runs_command_when_monitoring_fails(mocker, f
     assert mock_log.exception.call_count == 1
 
 
-def test_monitor_management_command_propagates_command_errors(mocker):
-    mocker.patch(f'{MONITORING}.function_trace', return_value=nullcontext())
-    mocker.patch(f'{MONITORING}.set_custom_attribute')
+@patch(f'{MONITORING}.log')
+@patch(f'{MONITORING}.set_custom_attribute', side_effect=NO_ROOT_SPAN_ERROR)
+@patch(f'{MONITORING}.function_trace', return_value=nullcontext())
+def test_monitor_management_command_runs_command_when_attribute_fails(
+    _mock_function_trace,
+    _mock_set_custom_attribute,
+    mock_log,
+):
+    """A failure setting attributes is logged and the command still runs."""
+    mock_command_execution = Mock()
 
+    with monitor_management_command('migrate', 'lms'):
+        mock_command_execution()
+
+    mock_command_execution.assert_called_once()
+    assert mock_log.exception.call_count == 1
+
+
+@patch(f'{MONITORING}.set_custom_attribute')
+@patch(f'{MONITORING}.function_trace', return_value=nullcontext())
+def test_monitor_management_command_propagates_command_errors(_mock_function_trace, _mock_set_custom_attribute):
     with pytest.raises(ValueError, match='command failed'):
         with monitor_management_command('migrate', 'lms'):
             raise ValueError('command failed')
@@ -142,13 +167,17 @@ def test_monitor_management_command_propagates_command_errors(mocker):
         ('', False),
     ],
 )
-def test_monitor_management_command_github_run_url_attribute(mocker, run_url, expected):
-    mocker.patch(f'{MONITORING}.function_trace', return_value=nullcontext())
-    mock_set_custom_attribute = mocker.patch(f'{MONITORING}.set_custom_attribute')
-    mocker.patch.dict('os.environ', {'EDX_MC_GITHUB_RUN_URL': run_url}, clear=False)
-
-    with monitor_management_command('migrate', 'lms'):
-        pass
+@patch(f'{MONITORING}.set_custom_attribute')
+@patch(f'{MONITORING}.function_trace', return_value=nullcontext())
+def test_monitor_management_command_github_run_url_attribute(
+    _mock_function_trace,
+    mock_set_custom_attribute,
+    run_url,
+    expected,
+):
+    with patch.dict('os.environ', {'EDX_MC_GITHUB_RUN_URL': run_url}):
+        with monitor_management_command('migrate', 'lms'):
+            pass
 
     keys = [call.args[0] for call in mock_set_custom_attribute.call_args_list]
     assert ('management_command.github_run_url' in keys) is expected
