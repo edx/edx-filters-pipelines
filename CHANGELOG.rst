@@ -20,10 +20,9 @@ Unreleased
 Fixed
 =====
 
-* Management-command monitoring no longer breaks commands when there is no
-  active Datadog root span (for example when ``manage.py`` is not run under
-  ``ddtrace-run``). The command span is now opened first, and any monitoring
-  setup error is logged instead of failing the command.
+* Management-command monitoring now opens its own span for the command, since
+  ddtrace does not wrap management commands by default. Any monitoring setup
+  error is logged instead of failing the command.
 
 1.2.0 - 2026-11-04
 ******************

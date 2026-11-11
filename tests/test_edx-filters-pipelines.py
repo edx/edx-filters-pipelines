@@ -38,48 +38,48 @@ STEP_ARGS = (
 
 def test_management_command_monitoring_step_disabled(mocker):
     step = ManagementCommandMonitoringPipelineStep(*STEP_ARGS)
-    command_execution = mocker.Mock()
-    toggle = mocker.patch(f'{MONITORING}.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled', return_value=False)
-    function_trace = mocker.patch(f'{MONITORING}.function_trace')
+    mock_command_execution = mocker.Mock()
+    mock_toggle = mocker.patch(f'{MONITORING}.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled', return_value=False)
+    mock_function_trace = mocker.patch(f'{MONITORING}.function_trace')
 
     result = step.run_filter(nullcontext(), 'migrate', 'lms')
 
     assert result['command_name'] == 'migrate'
     assert result['service_variant'] == 'lms'
     with result['command_contextmanager']:
-        command_execution()
-    toggle.assert_called_once()
-    command_execution.assert_called_once()
-    function_trace.assert_not_called()
+        mock_command_execution()
+    mock_toggle.assert_called_once()
+    mock_command_execution.assert_called_once()
+    mock_function_trace.assert_not_called()
 
 
 def test_management_command_monitoring_step_enabled(mocker):
     step = ManagementCommandMonitoringPipelineStep(*STEP_ARGS)
-    command_execution = mocker.Mock()
+    mock_command_execution = mocker.Mock()
     mocker.patch(f'{MONITORING}.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled', return_value=True)
-    function_trace = mocker.patch(f'{MONITORING}.function_trace', return_value=nullcontext())
-    set_custom_attribute = mocker.patch(f'{MONITORING}.set_custom_attribute')
+    mock_function_trace = mocker.patch(f'{MONITORING}.function_trace', return_value=nullcontext())
+    mock_set_custom_attribute = mocker.patch(f'{MONITORING}.set_custom_attribute')
 
     with step.run_filter(nullcontext(), 'migrate', 'lms')['command_contextmanager']:
-        command_execution()
+        mock_command_execution()
 
-    command_execution.assert_called_once()
-    function_trace.assert_called_once_with('migrate', operation_name='django.management.command')
-    set_custom_attribute.assert_any_call('management_command.service_variant', 'lms')
+    mock_command_execution.assert_called_once()
+    mock_function_trace.assert_called_once_with('migrate', operation_name='django.management.command')
+    mock_set_custom_attribute.assert_any_call('management_command.service_variant', 'lms')
 
 
 def test_management_command_monitoring_step_uses_configured_operation_name(mocker):
     step = ManagementCommandMonitoringPipelineStep(*STEP_ARGS, operation_name='custom.management.operation')
-    command_execution = mocker.Mock()
+    mock_command_execution = mocker.Mock()
     mocker.patch(f'{MONITORING}.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled', return_value=True)
-    function_trace = mocker.patch(f'{MONITORING}.function_trace', return_value=nullcontext())
+    mock_function_trace = mocker.patch(f'{MONITORING}.function_trace', return_value=nullcontext())
     mocker.patch(f'{MONITORING}.set_custom_attribute')
 
     with step.run_filter(nullcontext(), 'collectstatic', 'cms')['command_contextmanager']:
-        command_execution()
+        mock_command_execution()
 
-    command_execution.assert_called_once()
-    function_trace.assert_called_once_with('collectstatic', operation_name='custom.management.operation')
+    mock_command_execution.assert_called_once()
+    mock_function_trace.assert_called_once_with('collectstatic', operation_name='custom.management.operation')
 
 
 def test_monitor_management_command_span_wraps_the_command(mocker):
@@ -115,14 +115,14 @@ def test_monitor_management_command_runs_command_when_monitoring_fails(mocker, f
     mocker.patch(f'{MONITORING}.function_trace', return_value=nullcontext())
     mocker.patch(f'{MONITORING}.set_custom_attribute')
     mocker.patch(f'{MONITORING}.{failing}', side_effect=AttributeError("'NoneType' object has no attribute 'resource'"))
-    log = mocker.patch(f'{MONITORING}.log')
-    command_execution = mocker.Mock()
+    mock_log = mocker.patch(f'{MONITORING}.log')
+    mock_command_execution = mocker.Mock()
 
     with monitor_management_command('migrate', 'lms'):
-        command_execution()
+        mock_command_execution()
 
-    command_execution.assert_called_once()
-    assert log.exception.call_count == 1
+    mock_command_execution.assert_called_once()
+    assert mock_log.exception.call_count == 1
 
 
 def test_monitor_management_command_propagates_command_errors(mocker):
@@ -144,13 +144,13 @@ def test_monitor_management_command_propagates_command_errors(mocker):
 )
 def test_monitor_management_command_github_run_url_attribute(mocker, run_url, expected):
     mocker.patch(f'{MONITORING}.function_trace', return_value=nullcontext())
-    set_custom_attribute = mocker.patch(f'{MONITORING}.set_custom_attribute')
+    mock_set_custom_attribute = mocker.patch(f'{MONITORING}.set_custom_attribute')
     mocker.patch.dict('os.environ', {'EDX_MC_GITHUB_RUN_URL': run_url}, clear=False)
 
     with monitor_management_command('migrate', 'lms'):
         pass
 
-    keys = [call.args[0] for call in set_custom_attribute.call_args_list]
+    keys = [call.args[0] for call in mock_set_custom_attribute.call_args_list]
     assert ('management_command.github_run_url' in keys) is expected
     if expected:
-        set_custom_attribute.assert_any_call('management_command.github_run_url', run_url)
+        mock_set_custom_attribute.assert_any_call('management_command.github_run_url', run_url)
