@@ -14,9 +14,15 @@ Change Log
 Unreleased
 **********
 
-Added
+1.2.1 - 2026-11-06
+******************
+
+Fixed
 =====
 
+* Management-command monitoring now opens its own span for the command, since
+  ddtrace does not wrap management commands by default. Any monitoring setup
+  error is logged instead of failing the command.
 
 1.2.0 - 2026-11-04
 ******************

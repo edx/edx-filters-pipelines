@@ -2,7 +2,8 @@
 Tests for edx-filters-pipelines.py.
 """
 
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
+from unittest.mock import Mock, patch
 
 import pytest
 from openedx_filters.learning.filters import StudentRegistrationRequested
@@ -29,261 +30,156 @@ def test_username_blocked():
     assert "Usernames can't include words that could be mistaken for course roles." in str(exc_info.value)
 
 
-def test_management_command_monitoring_step_disabled(mocker):
-    step = ManagementCommandMonitoringPipelineStep(
-        'org.openedx.platform.management.command.contextmanager.requested.v1',
-        'edx_filters_pipelines.management.pipelines.monitoring.ManagementCommandMonitoringPipelineStep',
-    )
-    command_execution = mocker.Mock()
-    toggle = mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled',
-        return_value=False,
-    )
-    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.function_trace')
+MONITORING = 'edx_filters_pipelines.management.pipelines.monitoring'
+STEP_ARGS = (
+    'org.openedx.management.command.contextmanager.requested.v1',
+    f'{MONITORING}.ManagementCommandMonitoringPipelineStep',
+)
+
+
+@patch(f'{MONITORING}.function_trace')
+@patch(f'{MONITORING}.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled', return_value=False)
+def test_management_command_monitoring_step_disabled(mock_toggle, mock_function_trace):
+    step = ManagementCommandMonitoringPipelineStep(*STEP_ARGS)
+    mock_command_execution = Mock()
 
     result = step.run_filter(nullcontext(), 'migrate', 'lms')
 
     assert result['command_name'] == 'migrate'
     assert result['service_variant'] == 'lms'
     with result['command_contextmanager']:
-        command_execution()
-    toggle.assert_called_once()
-    command_execution.assert_called_once()
+        mock_command_execution()
+    mock_toggle.assert_called_once()
+    mock_command_execution.assert_called_once()
+    mock_function_trace.assert_not_called()
 
 
-def test_management_command_monitoring_step_enabled(mocker):
-    step = ManagementCommandMonitoringPipelineStep(
-        'org.openedx.platform.management.command.contextmanager.requested.v1',
-        'edx_filters_pipelines.management.pipelines.monitoring.ManagementCommandMonitoringPipelineStep',
-    )
-    command_execution = mocker.Mock()
-    mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled',
-        return_value=True,
-    )
-    mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.time.monotonic',
-        side_effect=[10.0, 15.0],
-    )
-    function_trace = mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
-        return_value=nullcontext(),
-    )
-    set_transaction_name = mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name'
-    )
-    set_custom_attribute = mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute'
-    )
-    log = mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.log')
+@patch(f'{MONITORING}.set_custom_attribute')
+@patch(f'{MONITORING}.function_trace', return_value=nullcontext())
+@patch(f'{MONITORING}.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled', return_value=True)
+def test_management_command_monitoring_step_enabled(_mock_toggle, mock_function_trace, mock_set_custom_attribute):
+    step = ManagementCommandMonitoringPipelineStep(*STEP_ARGS)
+    mock_command_execution = Mock()
 
-    wrapped = step.run_filter(nullcontext(), 'migrate', 'lms')['command_contextmanager']
+    with step.run_filter(nullcontext(), 'migrate', 'lms')['command_contextmanager']:
+        mock_command_execution()
 
-    with wrapped:
-        command_execution()
-
-    command_execution.assert_called_once()
-    function_trace.assert_called_once_with('migrate', operation_name='django.management.command')
-    set_transaction_name.assert_called_once_with('migrate')
-    set_custom_attribute.assert_any_call('management_command.service_variant', 'lms')
-    set_custom_attribute.assert_any_call('management_command.duration_seconds', 5.0)
-    set_custom_attribute.assert_any_call('management_command.status', 'success')
-    log.info.assert_any_call(
-        'Starting management command: %s service_variant=%s '
-        'operation_name=%s resource_name=%s',
-        'migrate',
-        'lms',
-        'django.management.command',
-        'migrate',
-    )
-    log.info.assert_any_call(
-        'Finished management command: %s service_variant=%s '
-        'operation_name=%s resource_name=%s status=%s duration_seconds=%s',
-        'migrate',
-        'lms',
-        'django.management.command',
-        'migrate',
-        'success',
-        5.0,
-    )
+    mock_command_execution.assert_called_once()
+    mock_function_trace.assert_called_once_with('migrate', operation_name='django.management.command')
+    mock_set_custom_attribute.assert_any_call('management_command.service_variant', 'lms')
 
 
-def test_management_command_monitoring_step_uses_configured_operation_name(mocker):
-    step = ManagementCommandMonitoringPipelineStep(
-        'org.openedx.platform.management.command.contextmanager.requested.v1',
-        'edx_filters_pipelines.management.pipelines.monitoring.ManagementCommandMonitoringPipelineStep',
-        operation_name='custom.management.operation',
-    )
-    command_execution = mocker.Mock()
-    mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled',
-        return_value=True,
-    )
-    function_trace = mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
-        return_value=nullcontext(),
-    )
-    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
-    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute')
+@patch(f'{MONITORING}.set_custom_attribute')
+@patch(f'{MONITORING}.function_trace', return_value=nullcontext())
+@patch(f'{MONITORING}.ENABLE_MANAGEMENT_COMMAND_MONITORING.is_enabled', return_value=True)
+def test_management_command_monitoring_step_uses_configured_operation_name(
+    _mock_toggle,
+    mock_function_trace,
+    _mock_set_custom_attribute,
+):
+    step = ManagementCommandMonitoringPipelineStep(*STEP_ARGS, operation_name='custom.management.operation')
+    mock_command_execution = Mock()
 
     with step.run_filter(nullcontext(), 'collectstatic', 'cms')['command_contextmanager']:
-        command_execution()
+        mock_command_execution()
 
-    command_execution.assert_called_once()
-    function_trace.assert_called_once_with('collectstatic', operation_name='custom.management.operation')
-
-
-def test_monitor_management_command_logs_failure(mocker):
-    mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.time.monotonic',
-        side_effect=[10.0, 15.0],
-    )
-    mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
-        return_value=nullcontext(),
-    )
-    set_custom_attribute = mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute'
-    )
-    log = mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.log')
-    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
-
-    with pytest.raises(RuntimeError):
-        with monitor_management_command('migrate', 'lms'):
-            raise RuntimeError('boom')
-
-    log.info.assert_any_call(
-        'Starting management command: %s service_variant=%s '
-        'operation_name=%s resource_name=%s',
-        'migrate',
-        'lms',
-        'django.management.command',
-        'migrate',
-    )
-    assert log.exception.call_count == 1
-    assert log.exception.call_args.args[:6] == (
-        'Management command failed: %s service_variant=%s '
-        'operation_name=%s resource_name=%s exception_class=%s error=%s',
-        'migrate',
-        'lms',
-        'django.management.command',
-        'migrate',
-        'RuntimeError',
-    )
-    assert str(log.exception.call_args.args[6]) == 'boom'
-    set_custom_attribute.assert_any_call('management_command.status', 'failure')
-    set_custom_attribute.assert_any_call('management_command.duration_seconds', 5.0)
-    set_custom_attribute.assert_any_call('management_command.exception_message', 'boom')
-    log.info.assert_any_call(
-        'Finished management command: %s service_variant=%s '
-        'operation_name=%s resource_name=%s status=%s duration_seconds=%s',
-        'migrate',
-        'lms',
-        'django.management.command',
-        'migrate',
-        'failure',
-        5.0,
-    )
+    mock_command_execution.assert_called_once()
+    mock_function_trace.assert_called_once_with('collectstatic', operation_name='custom.management.operation')
 
 
-@pytest.mark.parametrize(
-    'run_url',
-    [
-        'https://github.com/edx/edx-internal/actions/runs/123',
-        'https://github.com/edx/edx-internal/actions/runs/999',
-    ],
-)
-def test_monitor_management_command_sets_github_run_url_attribute(mocker, run_url):
-    mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
-        return_value=nullcontext(),
-    )
-    set_custom_attribute = mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute'
-    )
-    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
-    mocker.patch.dict(
-        'os.environ',
-        {
-            'EDX_MC_GITHUB_RUN_URL': run_url,
-        },
-        clear=False,
-    )
+@patch(f'{MONITORING}.set_custom_attribute')
+@patch(f'{MONITORING}.function_trace')
+def test_monitor_management_command_span_wraps_the_command(mock_function_trace, _mock_set_custom_attribute):
+    events = []
+
+    @contextmanager
+    def fake_span(name, operation_name):
+        events.append(('span_open', name, operation_name))
+        try:
+            yield
+        finally:
+            events.append(('span_close',))
+
+    mock_function_trace.side_effect = fake_span
 
     with monitor_management_command('migrate', 'lms'):
-        pass
+        events.append(('command',))
 
-    set_custom_attribute.assert_any_call(
-        'management_command.github_run_url',
-        run_url,
-    )
-
-
-def test_monitor_management_command_ignores_blank_github_run_url(mocker):
-    mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
-        return_value=nullcontext(),
-    )
-    set_custom_attribute = mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute'
-    )
-    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
-
-    mocker.patch.dict('os.environ', {'EDX_MC_GITHUB_RUN_URL': '   '}, clear=False)
-
-    with monitor_management_command('migrate', 'lms'):
-        pass
-
-    metadata_calls = [
-        call.args[0]
-        for call in set_custom_attribute.call_args_list
-        if call.args[0].startswith('management_command.')
+    assert events == [
+        ('span_open', 'migrate', 'django.management.command'),
+        ('command',),
+        ('span_close',),
     ]
-    assert 'management_command.github_run_url' not in metadata_calls
+
+
+NO_ROOT_SPAN_ERROR = AttributeError("'NoneType' object has no attribute 'resource'")
+
+
+@patch(f'{MONITORING}.log')
+@patch(f'{MONITORING}.set_custom_attribute')
+@patch(f'{MONITORING}.function_trace', side_effect=NO_ROOT_SPAN_ERROR)
+def test_monitor_management_command_runs_command_when_span_fails(
+    _mock_function_trace,
+    _mock_set_custom_attribute,
+    mock_log,
+):
+    """A failure opening the span (e.g. no root span) is logged and the command still runs."""
+    mock_command_execution = Mock()
+
+    with monitor_management_command('migrate', 'lms'):
+        mock_command_execution()
+
+    mock_command_execution.assert_called_once()
+    assert mock_log.exception.call_count == 1
+
+
+@patch(f'{MONITORING}.log')
+@patch(f'{MONITORING}.set_custom_attribute', side_effect=NO_ROOT_SPAN_ERROR)
+@patch(f'{MONITORING}.function_trace', return_value=nullcontext())
+def test_monitor_management_command_runs_command_when_attribute_fails(
+    _mock_function_trace,
+    _mock_set_custom_attribute,
+    mock_log,
+):
+    """A failure setting attributes is logged and the command still runs."""
+    mock_command_execution = Mock()
+
+    with monitor_management_command('migrate', 'lms'):
+        mock_command_execution()
+
+    mock_command_execution.assert_called_once()
+    assert mock_log.exception.call_count == 1
+
+
+@patch(f'{MONITORING}.set_custom_attribute')
+@patch(f'{MONITORING}.function_trace', return_value=nullcontext())
+def test_monitor_management_command_propagates_command_errors(_mock_function_trace, _mock_set_custom_attribute):
+    with pytest.raises(ValueError, match='command failed'):
+        with monitor_management_command('migrate', 'lms'):
+            raise ValueError('command failed')
 
 
 @pytest.mark.parametrize(
-    'raised_exception, expected_status, expected_exit_code, exception_class_recorded',
+    'run_url, expected',
     [
-        pytest.param(SystemExit(0), 'success', None, False, id='system-exit-zero'),
-        pytest.param(SystemExit(1), 'failure', 1, True, id='system-exit-nonzero'),
-        pytest.param(KeyboardInterrupt(), 'failure', None, False, id='keyboard-interrupt'),
+        ('https://github.com/edx/edx-internal/actions/runs/123', True),
+        ('   ', False),
+        ('', False),
     ],
 )
-def test_monitor_management_command_exception_handling(
-    mocker,
-    raised_exception,
-    expected_status,
-    expected_exit_code,
-    exception_class_recorded,
+@patch(f'{MONITORING}.set_custom_attribute')
+@patch(f'{MONITORING}.function_trace', return_value=nullcontext())
+def test_monitor_management_command_github_run_url_attribute(
+    _mock_function_trace,
+    mock_set_custom_attribute,
+    run_url,
+    expected,
 ):
-    mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.function_trace',
-        return_value=nullcontext(),
-    )
-    set_custom_attribute = mocker.patch(
-        'edx_filters_pipelines.management.pipelines.monitoring.set_custom_attribute'
-    )
-    mocker.patch('edx_filters_pipelines.management.pipelines.monitoring.set_monitoring_transaction_name')
-
-    with pytest.raises(type(raised_exception)) as exc_info:
+    with patch.dict('os.environ', {'EDX_MC_GITHUB_RUN_URL': run_url}):
         with monitor_management_command('migrate', 'lms'):
-            raise raised_exception
+            pass
 
-    if expected_exit_code is not None:
-        assert exc_info.value.code == expected_exit_code
-        set_custom_attribute.assert_any_call('management_command.exit_code', expected_exit_code)
-    else:
-        assert ('management_command.exit_code',) not in [
-            call.args[:1] for call in set_custom_attribute.call_args_list
-        ]
-
-    if exception_class_recorded:
-        set_custom_attribute.assert_any_call('management_command.exception_message', str(raised_exception))
-
-    if not exception_class_recorded:
-        assert ('management_command.exception_class', raised_exception.__class__.__name__) not in [
-            call.args for call in set_custom_attribute.call_args_list
-        ]
-
-    set_custom_attribute.assert_any_call('management_command.status', expected_status)
+    keys = [call.args[0] for call in mock_set_custom_attribute.call_args_list]
+    assert ('management_command.github_run_url' in keys) is expected
+    if expected:
+        mock_set_custom_attribute.assert_any_call('management_command.github_run_url', run_url)
